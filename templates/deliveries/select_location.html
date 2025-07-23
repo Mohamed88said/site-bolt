@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Sélectionner une adresse de livraison - E-Commerce{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2><i class="fas fa-map-marker-alt me-2"></i>Sélectionner une adresse de livraison</h2>
+    <p class="text-muted">Choisissez une adresse enregistrée ou saisissez une adresse manuelle pour la livraison #{{ delivery.tracking_number }}.</p>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-map-pin"></i> Adresses enregistrées</h5>
+                </div>
+                <div class="card-body">
+                    {% if user_locations %}
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="location_type" value="existing">
+                            <div class="row">
+                                {% for location in user_locations %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card h-100">
+                                            <div class="card-body">
+                                                <div class="form-check">
+                                                    <input type="radio" name="location_id" value="{{ location.id }}" class="form-check-input" required>
+                                                    <label class="form-check-label">
+                                                        <strong>{{ location.location_point.name }}</strong>
+                                                        {% if location.is_primary %}(Principale){% endif %}
+                                                    </label>
+                                                </div>
+                                                <p>{{ location.location_point.full_address }}</p>
+                                                {% if location.location_point.landmark %}
+                                                    <p><i class="fas fa-map-pin me-2"></i>{{ location.location_point.landmark }}</p>
+                                                {% endif %}
+                                                {% if location.location_point.access_instructions %}
+                                                    <p><i class="fas fa-route me-2"></i>{{ location.location_point.access_instructions }}</p>
+                                                {% endif %}
+                                                <a href="{{ location.location_point.google_maps_url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                                    <i class="fas fa-external-link-alt"></i> Voir sur Google Maps
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 mt-3">
+                                <i class="fas fa-save me-2"></i>Sélectionner cette adresse
+                            </button>
+                        </form>
+                    {% else %}
+                        <p class="text-muted">Aucune adresse enregistrée. Veuillez en ajouter une nouvelle ou saisir une adresse manuelle.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-edit"></i> Saisir une adresse manuelle</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="location_type" value="manual">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Prénom *</label>
+                                <input type="text" name="shipping_first_name" class="form-control" value="{{ delivery.order.shipping_first_name }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Nom *</label>
+                                <input type="text" name="shipping_last_name" class="form-control" value="{{ delivery.order.shipping_last_name }}" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Adresse *</label>
+                            <textarea name="shipping_address" class="form-control" rows="3" required>{{ delivery.order.shipping_address }}</textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Ville *</label>
+                                <input type="text" name="shipping_city" class="form-control" value="{{ delivery.order.shipping_city }}" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Code postal *</label>
+                                <input type="text" name="shipping_postal_code" class="form-control" value="{{ delivery.order.shipping_postal_code }}" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Pays *</label>
+                                <input type="text" name="shipping_country" class="form-control" value="{{ delivery.order.shipping_country }}" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Téléphone</label>
+                            <input type="text" name="shipping_phone" class="form-control" value="{{ delivery.order.shipping_phone }}">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-save me-2"></i>Sauvegarder l'adresse manuelle
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-plus-circle"></i> Ajouter une nouvelle adresse</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'geolocation:location_picker' %}?next={% url 'deliveries:select_location' delivery.id %}" class="btn btn-outline-success w-100">
+                        <i class="fas fa-map-marker-alt me-2"></i>Créer une nouvelle adresse via la carte
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <a href="{% url 'deliveries:detail' delivery.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour à la livraison
+        </a>
+    </div>
+</div>
+{% endblock %}

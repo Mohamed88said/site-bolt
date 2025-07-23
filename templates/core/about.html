@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}À propos - {{ site_name }}{% endblock %}
+
+{% block meta_description %}En savoir plus sur {{ site_name }}, notre mission, notre équipe et notre engagement envers nos clients.{% endblock %}
+
+{% block content %}
+<section class="about-section py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold">À propos de {{ site_name }}</h2>
+            <p class="text-muted">Notre histoire et notre mission</p>
+        </div>
+        
+        <div class="row align-items-center mb-5">
+            <div class="col-lg-6 mb-4 mb-lg-0">
+                <img src="https://images.pexels.com/photos/3184292/pexels-photo-3184292.jpeg?auto=compress&cs=tinysrgb&w=800" 
+                     alt="About Us" class="img-fluid rounded shadow-lg">
+            </div>
+            <div class="col-lg-6">
+                <h3 class="fw-bold mb-3">Notre Mission</h3>
+                <p class="text-muted">
+                    Chez {{ site_name }}, nous nous engageons à offrir une plateforme e-commerce fiable où les acheteurs peuvent découvrir des produits uniques et les vendeurs peuvent prospérer. Fondée en [année], notre objectif est de connecter les communautés locales avec des solutions innovantes.
+                </p>
+                <p class="text-muted">
+                    Avec une équipe passionnée et un service client dédié, nous travaillons chaque jour pour améliorer votre expérience d'achat en ligne.
+                </p>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <h3 class="fw-bold mb-3">Notre Équipe</h3>
+                <p class="text-muted">
+                    Nous sommes une équipe diversifiée de professionnels ayant une expertise en technologie, commerce et service client. Ensemble, nous construisons une marketplace qui répond aux besoins de tous.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

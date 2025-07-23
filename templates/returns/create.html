@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Demande de retour - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-undo me-2"></i>Demande de retour</h4>
+                    <p class="mb-0 text-muted">Commande #{{ order.id|slice:":8" }} du {{ order.created_at|date:"d/m/Y" }}</p>
+                </div>
+                <div class="card-body">
+                    <!-- Articles de la commande -->
+                    <div class="mb-4">
+                        <h5>Articles de la commande</h5>
+                        {% for item in order.items.all %}
+                        <div class="d-flex align-items-center border-bottom py-3">
+                            <div class="me-3">
+                                {% if item.product.main_image %}
+                                    <img src="{{ item.product.main_image.image.url }}" alt="{{ item.product.name }}" 
+                                         class="img-thumbnail" style="width: 60px; height: 60px; object-fit: cover;">
+                                {% else %}
+                                    <div class="bg-light d-flex align-items-center justify-content-center" 
+                                         style="width: 60px; height: 60px;">
+                                        <i class="fas fa-image text-muted"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ item.product.name }}</h6>
+                                <small class="text-muted">Quantité: {{ item.quantity }} - Prix: {{ item.price }}€</small>
+                            </div>
+                            <div>
+                                <strong>{{ item.total_price }}€</strong>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Formulaire de demande de retour -->
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Conditions de retour:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Les articles doivent être retournés dans leur état d'origine</li>
+                                <li>Le délai de retour est de 30 jours après la livraison</li>
+                                <li>Les frais de retour peuvent être à votre charge selon le motif</li>
+                                <li>Le remboursement sera effectué après vérification des articles</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'orders:detail' order.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Retour à la commande
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-2"></i>Envoyer la demande
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

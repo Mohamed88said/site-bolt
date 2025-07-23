@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+
+{% block title %}Politique de retour - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-undo me-2"></i>Politique de retour et remboursement</h2>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Notre engagement :</strong> Nous nous engageons à vous offrir une expérience d'achat satisfaisante. Si vous n'êtes pas entièrement satisfait de votre achat, nous facilitons les retours et remboursements.
+                    </div>
+                    
+                    <h3>1. Conditions générales de retour</h3>
+                    <h4>1.1 Délai de retour</h4>
+                    <ul>
+                        <li><strong>30 jours</strong> à compter de la date de livraison</li>
+                        <li>Le délai court à partir de la réception effective du produit</li>
+                        <li>Pour les produits périssables : 48h maximum</li>
+                    </ul>
+                    
+                    <h4>1.2 État des produits</h4>
+                    <ul>
+                        <li>Produits en parfait état, non utilisés</li>
+                        <li>Emballage d'origine conservé</li>
+                        <li>Étiquettes et accessoires inclus</li>
+                        <li>Facture d'achat obligatoire</li>
+                    </ul>
+                    
+                    <h3>2. Motifs de retour acceptés</h3>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4>2.1 Défauts produit</h4>
+                            <ul>
+                                <li>Produit défectueux</li>
+                                <li>Produit endommagé pendant le transport</li>
+                                <li>Non-conformité à la description</li>
+                                <li>Mauvais article livré</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h4>2.2 Changement d'avis</h4>
+                            <ul>
+                                <li>Droit de rétractation</li>
+                                <li>Taille inadaptée</li>
+                                <li>Couleur différente de l'attente</li>
+                                <li>Qualité non satisfaisante</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <h3>3. Produits non retournables</h3>
+                    <div class="alert alert-warning">
+                        <h4>Exceptions :</h4>
+                        <ul class="mb-0">
+                            <li>Produits alimentaires périssables</li>
+                            <li>Produits d'hygiène personnelle</li>
+                            <li>Produits personnalisés ou sur mesure</li>
+                            <li>Produits numériques téléchargés</li>
+                            <li>Produits détériorés par l'acheteur</li>
+                        </ul>
+                    </div>
+                    
+                    <h3>4. Processus de retour</h3>
+                    <h4>4.1 Demande de retour</h4>
+                    <ol>
+                        <li>Connectez-vous à votre compte</li>
+                        <li>Accédez à "Mes commandes"</li>
+                        <li>Sélectionnez la commande concernée</li>
+                        <li>Cliquez sur "Demander un retour"</li>
+                        <li>Remplissez le formulaire de retour</li>
+                        <li>Joignez des photos si nécessaire</li>
+                    </ol>
+                    
+                    <h4>4.2 Validation de la demande</h4>
+                    <ul>
+                        <li>Examen de la demande sous 24-48h</li>
+                        <li>Notification par email de la décision</li>
+                        <li>Instructions de retour si accepté</li>
+                    </ul>
+                    
+                    <h4>4.3 Expédition du retour</h4>
+                    <ul>
+                        <li>Emballage soigné du produit</li>
+                        <li>Utilisation de l'étiquette de retour fournie</li>
+                        <li>Remise au transporteur désigné</li>
+                        <li>Conservation du récépissé d'expédition</li>
+                    </ul>
+                    
+                    <h3>5. Frais de retour</h3>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <h5><i class="fas fa-check-circle me-2"></i>Gratuit</h5>
+                                    <ul class="mb-0">
+                                        <li>Produit défectueux</li>
+                                        <li>Erreur de notre part</li>
+                                        <li>Produit endommagé</li>
+                                        <li>Non-conformité</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-warning text-dark">
+                                <div class="card-body">
+                                    <h5><i class="fas fa-exclamation-triangle me-2"></i>À votre charge</h5>
+                                    <ul class="mb-0">
+                                        <li>Changement d'avis</li>
+                                        <li>Taille inadaptée</li>
+                                        <li>Commande par erreur</li>
+                                        <li>Préférence personnelle</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h3>6. Remboursements</h3>
+                    <h4>6.1 Délais de remboursement</h4>
+                    <ul>
+                        <li><strong>Carte bancaire :</strong> 3-5 jours ouvrés</li>
+                        <li><strong>Mobile money :</strong> 24-48h</li>
+                        <li><strong>Virement bancaire :</strong> 5-7 jours ouvrés</li>
+                        <li><strong>Paiement à la livraison :</strong> Virement sous 7 jours</li>
+                    </ul>
+                    
+                    <h4>6.2 Montant remboursé</h4>
+                    <ul>
+                        <li>Prix du produit intégralement</li>
+                        <li>Frais de livraison si retour gratuit</li>
+                        <li>Taxes incluses</li>
+                        <li>Déduction des frais de retour si applicable</li>
+                    </ul>
+                    
+                    <h3>7. Échanges</h3>
+                    <p>Nous proposons des échanges pour :</p>
+                    <ul>
+                        <li>Changement de taille</li>
+                        <li>Changement de couleur</li>
+                        <li>Produit défectueux</li>
+                    </ul>
+                    <p><em>L'échange est soumis à disponibilité du produit souhaité.</em></p>
+                    
+                    <h3>8. Cas particuliers</h3>
+                    <h4>8.1 Produits vendus par des tiers</h4>
+                    <ul>
+                        <li>Politique de retour du vendeur applicable</li>
+                        <li>Médiation possible par la plateforme</li>
+                        <li>Respect des conditions générales</li>
+                    </ul>
+                    
+                    <h4>8.2 Promotions et soldes</h4>
+                    <ul>
+                        <li>Mêmes conditions de retour</li>
+                        <li>Remboursement au prix payé</li>
+                        <li>Pas d'échange contre produit plein tarif</li>
+                    </ul>
+                    
+                    <h3>9. Litiges et réclamations</h3>
+                    <p>En cas de désaccord :</p>
+                    <ol>
+                        <li>Contactez notre service client</li>
+                        <li>Exposition détaillée du problème</li>
+                        <li>Fourniture de preuves (photos, documents)</li>
+                        <li>Recherche de solution amiable</li>
+                        <li>Médiation si nécessaire</li>
+                    </ol>
+                    
+                    <h3>10. Contact service retours</h3>
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h5>Service client retours</h5>
+                            <ul class="mb-0">
+                                <li><strong>Email :</strong> retours@{{ site_name|lower }}.com</li>
+                                <li><strong>Téléphone :</strong> +224 610 267 054</li>
+                                <li><strong>Horaires :</strong> Lundi-Vendredi 8h-18h</li>
+                                <li><strong>Délai de réponse :</strong> 24h maximum</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <p><em>Dernière mise à jour : {{ "now"|date:"d/m/Y" }}</em></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

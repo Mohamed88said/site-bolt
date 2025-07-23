@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Inscription - E-Commerce{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-user-plus fa-3x text-primary"></i>
+                    <h3 class="mt-2">Créer un compte</h3>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    
+                    <div id="seller-fields" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Information vendeur :</strong> Votre profil sera en attente de validation. 
+                            Vous pourrez créer des produits, mais ils ne seront visibles qu'après validation par un administrateur.
+                        </div>
+                    </div>
+                    
+                    <div id="delivery-fields" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Information livreur :</strong> Votre profil sera en attente de validation. 
+                            Vous pourrez voir les livraisons disponibles après validation de vos documents.
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                        <i class="fas fa-user-plus"></i> Créer mon compte
+                    </button>
+                </form>
+                
+                <div class="text-center">
+                    <p>
+                        Déjà un compte ? 
+                        <a href="{% url 'accounts:login' %}" class="text-decoration-none">
+                            Se connecter
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const userTypeField = document.getElementById('id_user_type');
+    const sellerFields = document.getElementById('seller-fields');
+    const deliveryFields = document.getElementById('delivery-fields');
+    const addressField = document.getElementById('id_address');
+    const cityField = document.getElementById('id_city');
+    
+    function toggleFields() {
+        const userType = userTypeField.value;
+        
+        // Masquer tous les champs spéciaux
+        sellerFields.style.display = 'none';
+        deliveryFields.style.display = 'none';
+        
+        // Réinitialiser les champs requis
+        addressField.required = false;
+        cityField.required = false;
+        
+        if (userType === 'seller') {
+            sellerFields.style.display = 'block';
+            addressField.required = true;
+            cityField.required = true;
+        } else if (userType === 'delivery') {
+            deliveryFields.style.display = 'block';
+        }
+    }
+    
+    userTypeField.addEventListener('change', toggleFields);
+    toggleFields(); // Appel initial
+});
+</script>
+{% endblock %}

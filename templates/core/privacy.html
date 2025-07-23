@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Politique de Confidentialité - {{ site_name }}{% endblock %}
+
+{% block meta_description %}Consultez la politique de confidentialité de {{ site_name }} pour en savoir plus sur la gestion de vos données personnelles.{% endblock %}
+
+{% block content %}
+<section class="privacy-section py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold">Politique de Confidentialité</h2>
+            <p class="text-muted">Protection de vos données personnelles</p>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <h3 class="fw-bold mb-3">1. Collecte des Données</h3>
+                <p class="text-muted">
+                    Nous collectons des informations lorsque vous vous inscrivez, passez une commande ou interagissez avec notre site. Cela inclut votre nom, email, et détails de paiement.
+                </p>
+                
+                <h3 class="fw-bold mb-3">2. Utilisation des Données</h3>
+                <p class="text-muted">
+                    Vos données sont utilisées pour traiter vos commandes, améliorer nos services et vous envoyer des communications marketing (avec votre consentement).
+                </p>
+                
+                <h3 class="fw-bold mb-3">3. Sécurité</h3>
+                <p class="text-muted">
+                    Nous utilisons des mesures de sécurité avancées pour protéger vos informations contre tout accès non autorisé.
+                </p>
+                
+                <h3 class="fw-bold mb-3">4. Vos Droits</h3>
+                <p class="text-muted">
+                    Vous pouvez demander l'accès, la correction ou la suppression de vos données personnelles en nous contactant.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

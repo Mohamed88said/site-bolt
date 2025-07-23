@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% trans "Confirmer le paiement" %} - E-Commerce{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2><i class="fas fa-money-check-alt me-2"></i>{% trans "Confirmer le paiement pour la commande #" %}{{ order.id|slice:":8" }}</h2>
+    
+    {% if messages %}
+        <div class="alert alert-dismissible">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-shopping-bag"></i>{% trans "Détails de la commande" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>{% trans "Client :" %}</strong> {{ order.user.get_full_name|default:order.user.username }}</p>
+                            <p><strong>{% trans "Téléphone :" %}</strong> {{ order.shipping_phone|default:"Non renseigné" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>{% trans "Adresse de livraison :" %}</strong></p>
+                            <address>
+                                {{ order.shipping_first_name }} {{ order.shipping_last_name }}<br>
+                                {{ order.full_shipping_address }}
+                            </address>
+                        </div>
+                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Produit" %}</th>
+                                <th>{% trans "Prix" %}</th>
+                                <th>{% trans "Qté" %}</th>
+                                <th>{% trans "Total" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in order_items %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if item.product.main_image %}
+                                            <img src="{{ item.product.main_image.image.url }}" 
+                                                 alt="{{ item.product.name }}" 
+                                                 class="rounded me-2" 
+                                                 style="width: 50px; height: 50px; object-fit: cover;">
+                                        {% endif %}
+                                        <div>
+                                            {{ item.product.name }}
+                                            {% if item.variant %}
+                                                <br><small class="text-muted">{{ item.variant.name }}: {{ item.variant.value }}</small>
+                                            {% endif %}
+                                            <br><small class="text-muted">{% trans "Vendeur:" %} {{ item.product.seller.username }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ item.price }}€</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.total_price }}€</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>{% trans "Sous-total :" %}</span>
+                        <span>{{ order.total_amount }}€</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>{% trans "Livraison :" %}</span>
+                        <span>{{ order.shipping_cost }}€</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>{% trans "TVA :" %}</span>
+                        <span>{{ order.tax_amount }}€</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <strong>{% trans "Total :" %}</strong>
+                        <strong>{{ order.total_with_shipping }}€</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-check-circle"></i>{% trans "Finaliser le paiement" %}</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>{% trans "Code de confirmation" %}:</strong> {{ payment.confirmation_code }}</p>
+                    {% if payment.qr_code_image %}
+                        <p><img src="{{ payment.qr_code_image.url }}" alt="{% trans 'QR Code de paiement' %}" class="img-fluid mb-3" style="max-width: 200px;"></p>
+                    {% endif %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="confirmation_code" class="form-label">{% trans "Code de confirmation" %}</label>
+                            <input type="text" name="confirmation_code" class="form-control" id="confirmation_code" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="payment_method" class="form-label">{% trans "Mode de paiement" %}</label>
+                            <select name="payment_method" class="form-select" id="payment_method">
+                                <option value="cash">{% trans "Espèces" %}</option>
+                                <option value="card">{% trans "Carte bancaire" %}</option>
+                            </select>
+                        </div>
+                        {% if request.user == order.items.first.product.seller %}
+                            <div class="mb-3">
+                                <label for="paid_by" class="form-label">{% trans "Payé par" %}</label>
+                                <select class="form-select" id="paid_by" name="paid_by" required>
+                                    <option value="buyer" {% if delivery.paid_by == 'buyer' %}selected{% endif %}>{% trans "Acheteur" %}</option>
+                                    <option value="seller" {% if delivery.paid_by == 'seller' %}selected{% endif %}>{% trans "Vendeur" %}</option>
+                                </select>
+                            </div>
+                        {% endif %}
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-check"></i> {% trans "Confirmer le paiement" %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{% url 'orders:detail' pk=order.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> {% trans "Retour aux détails de la commande" %}
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Résultats de recherche - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2><i class="fas fa-search me-2"></i>Résultats pour "{{ query }}"</h2>
+    
+    {% if locations %}
+        <div class="row">
+            {% for location in locations %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5>{{ location.name }}</h5>
+                            <p>{{ location.full_address }}</p>
+                            {% if location.landmark %}
+                                <p><i class="fas fa-map-pin me-2"></i>{{ location.landmark }}</p>
+                            {% endif %}
+                            <p><strong>Coordonnées :</strong> {{ location.latitude }}, {{ location.longitude }}</p>
+                            <a href="{{ location.google_maps_url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-external-link-alt"></i> Voir sur Google Maps
+                            </a>
+                            <a href="{% url 'geolocation:location_detail' location.id %}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-eye"></i> Détails
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted">Aucun résultat trouvé pour "{{ query }}".</p>
+        <a href="{% url 'geolocation:location_picker' %}" class="btn btn-primary">
+            <i class="fas fa-plus-circle"></i> Ajouter une nouvelle localisation
+        </a>
+    {% endif %}
+    
+    <div class="mt-4">
+        <a href="{% url 'geolocation:location_picker' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour à la sélection
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block title %}Livraisons Disponibles - E-Commerce{% endblock %}
+
+{% block content %}
+<h2><i class="fas fa-search"></i> Livraisons Disponibles</h2>
+<p class="text-muted">Voici les livraisons en attente d'attribution. Vous pouvez faire une demande pour les livraisons qui vous intéressent.</p>
+
+{% if deliveries %}
+<div class="row">
+    {% for delivery in deliveries %}
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <strong>Livraison #{{ delivery.tracking_number }}</strong>
+                        <br>
+                        <small class="text-muted">Commande #{{ delivery.order.id|slice:":8" }}</small>
+                    </div>
+                    <div class="col-md-2">
+                        <span class="badge bg-warning">{{ delivery.get_status_display }}</span>
+                    </div>
+                    <div class="col-md-2">
+                        <strong>{{ delivery.order.total_with_shipping }}€</strong>
+                        <br>
+                        <small class="text-muted">Valeur commande</small>
+                    </div>
+                    <div class="col-md-2">
+                        <small class="text-muted">{{ delivery.created_at|date:"d/m/Y H:i" }}</small>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <a href="{% url 'deliveries:request' delivery.id %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-hand-paper"></i> Faire une demande
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-map-marker-alt"></i> Adresse de livraison:</h6>
+                        {% if delivery.location_point %}
+                            <p><strong>{{ delivery.location_point.name }}</strong></p>
+                            <p>{{ delivery.location_point.full_address }}</p>
+                            <p><strong>Coordonnées :</strong> {{ delivery.location_point.latitude }}, {{ delivery.location_point.longitude }}</p>
+                            {% if delivery.location_point.landmark %}
+                                <p><i class="fas fa-map-pin me-2"></i>{{ delivery.location_point.landmark }}</p>
+                            {% endif %}
+                            {% if delivery.location_point.access_instructions %}
+                                <p><i class="fas fa-route me-2"></i>{{ delivery.location_point.access_instructions }}</p>
+                            {% endif %}
+                            <a href="{{ delivery.location_point.google_maps_url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-external-link-alt"></i> Voir sur Google Maps
+                            </a>
+                        {% else %}
+                            <address class="mb-0">
+                                {{ delivery.order.shipping_first_name }} {{ delivery.order.shipping_last_name }}<br>
+                                {{ delivery.order.shipping_address }}<br>
+                                {{ delivery.order.shipping_postal_code }} {{ delivery.order.shipping_city }}<br>
+                                {{ delivery.order.shipping_country }}
+                            </address>
+                        {% endif %}
+                        {% if delivery.delivery_zone %}
+                            <p><strong>Zone de livraison :</strong> {{ delivery.delivery_zone.name }}</p>
+                            <p><strong>Coût estimé :</strong> {{ delivery.delivery_cost }}€</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-boxes"></i> Articles à livrer:</h6>
+                        {% for item in delivery.order.items.all %}
+                            <div class="d-flex justify-content-between">
+                                <span>{{ item.quantity }}x {{ item.product.name|truncatechars:40 }}</span>
+                                <small class="text-muted">{{ item.total_price }}€</small>
+                            </div>
+                        {% endfor %}
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <strong>Total articles:</strong>
+                            <strong>{{ delivery.order.total_amount }}€</strong>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if delivery.requests.all %}
+                <hr>
+                <h6><i class="fas fa-users"></i> Demandes existantes ({{ delivery.requests.count }}):</h6>
+                <div class="row">
+                    {% for request in delivery.requests.all|slice:":3" %}
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body p-2">
+                                <small><strong>{{ request.delivery_person.username }}</strong></small>
+                                <br>
+                                <small class="text-success">{{ request.proposed_cost }}€</small>
+                                {% if request.message %}
+                                    <br>
+                                    <small class="text-muted">{{ request.message|truncatechars:50 }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-truck fa-5x text-muted mb-4"></i>
+    <h3>Aucune livraison disponible</h3>
+    <p class="text-muted mb-4">Il n'y a pas de livraisons disponibles pour le moment.</p>
+    <a href="{% url 'deliveries:list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Retour à mes livraisons
+    </a>
+</div>
+{% endif %}
+{% endblock %}

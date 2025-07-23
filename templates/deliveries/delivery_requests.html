@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Demandes de livraison pour #" %}{{ delivery.tracking_number }} - E-Commerce{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:home' %}">{% trans "Accueil" %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'deliveries:list' %}">{% trans "Mes livraisons" %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'deliveries:detail' delivery.id %}">{% trans "Livraison #" %}{{ delivery.tracking_number }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans "Demandes" %}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-4">
+    <h2><i class="fas fa-list me-2"></i>{% trans "Demandes de livraison pour #" %}{{ delivery.tracking_number }}</h2>
+    
+    {% if messages %}
+        <div class="alert alert-dismissible fade show" role="alert">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5>{% trans "Demandes reçues" %}</h5>
+        </div>
+        <div class="card-body">
+            {% if requests %}
+                <ul class="list-group">
+                    {% for request in requests %}
+                        <li class="list-group-item">
+                            <p><strong>{% trans "Livreur" %}:</strong> {{ request.delivery_person.username }}</p>
+                            <p><strong>{% trans "Prix proposé" %}:</strong> {{ request.proposed_cost }}€</p>
+                            <p><strong>{% trans "Payé par" %}:</strong> {{ delivery.get_paid_by_display }}</p>
+                            <p><strong>{% trans "Message" %}:</strong> {{ request.message|default:"Aucun message" }}</p>
+                            {% if request.delivery_person.delivery_person_profile.phone_number %}
+                                <p><strong>{% trans "Téléphone" %}:</strong> 
+                                    <a href="tel:{{ request.delivery_person.delivery_person_profile.phone_number }}">
+                                        {{ request.delivery_person.delivery_person_profile.phone_number }}
+                                    </a>
+                                </p>
+                            {% endif %}
+                            <button onclick="acceptDelivery({{ request.id }})" class="btn btn-success btn-sm">
+                                <i class="fas fa-check me-2"></i>{% trans "Accepter ce livreur" %}
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted">{% trans "Aucune demande pour le moment." %}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <a href="{% url 'geolocation:delivery_person_map' delivery_id=delivery.id %}" class="btn btn-primary">
+            <i class="fas fa-map-marker-alt me-2"></i>{% trans "Voir les livreurs sur la carte" %}
+        </a>
+        <a href="{% url 'deliveries:detail' delivery.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>{% trans "Retour aux détails" %}
+        </a>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+function acceptDelivery(requestId) {
+    if (!confirm('{% trans "Voulez-vous vraiment accepter ce livreur ?" %}')) return;
+    fetch(`/deliveries/accept/${requestId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('{% trans "Livreur accepté avec succès !" %}');
+            window.location.href = '{% url "deliveries:detail" delivery.id %}';
+        } else {
+            alert('{% trans "Erreur" %}: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('{% trans "Erreur lors de l\'acceptation du livreur" %}');
+    });
+}
+</script>
+{% endblock %}

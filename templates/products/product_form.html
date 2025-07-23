@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if object %}Modifier{% else %}Ajouter{% endif %} un produit - E-Commerce{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <h4>
+                    <i class="fas fa-{% if object %}edit{% else %}plus{% endif %}"></i>
+                    {% if object %}Modifier le produit{% else %}Ajouter un produit{% endif %}
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5>Informations générales</h5>
+                            {{ form.name|as_crispy_field }}
+                            {{ form.short_description|as_crispy_field }}
+                            {{ form.description|as_crispy_field }}
+                            {{ form.category|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            <h5>Prix et stock</h5>
+                            {{ form.price|as_crispy_field }}
+                            {{ form.discount_price|as_crispy_field }}
+                            {{ form.stock|as_crispy_field }}
+                            {{ form.sku|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Caractéristiques</h5>
+                            {{ form.weight|as_crispy_field }}
+                            {{ form.dimensions|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Options</h5>
+                            {{ form.is_active|as_crispy_field }}
+                            {{ form.is_featured|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h5>Images du produit</h5>
+                    <div id="image-formset">
+                        {{ formset.management_form }}
+                        {% for form in formset %}
+                            <div class="image-form border p-3 mb-3 rounded">
+                                {% if form.instance.pk %}
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <img src="{{ form.instance.image.url }}" alt="Image" class="img-thumbnail" style="max-height: 100px;">
+                                        </div>
+                                        <div class="col-md-9">
+                                            {{ form|crispy }}
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    {{ form|crispy }}
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'products:seller_products' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Retour
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {% if object %}Modifier{% else %}Ajouter{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

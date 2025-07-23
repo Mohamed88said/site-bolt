@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}Mon Profil - E-Commerce{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                {% if user.avatar %}
+                    <img src="{{ user.avatar.url }}" alt="Avatar" class="rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover;">
+                {% else %}
+                    <i class="fas fa-user-circle fa-5x text-muted mb-3"></i>
+                {% endif %}
+                <h4>{{ user.get_full_name|default:user.username }}</h4>
+                <p class="text-muted">{{ user.get_user_type_display }}</p>
+                <span class="badge bg-{% if user.is_verified %}success{% else %}warning{% endif %}">
+                    {% if user.is_verified %}Vérifié{% else %}Non vérifié{% endif %}
+                </span>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-cog"></i> Actions</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{% url 'accounts:profile_update' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-edit"></i> Modifier le profil
+                </a>
+                <a href="{% url 'accounts:password_change' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-key"></i> Changer le mot de passe
+                </a>
+                {% if user.is_seller %}
+                    <a href="{% url 'accounts:seller_profile_update' %}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-store"></i> Profil vendeur
+                    </a>
+                {% endif %}
+                {% if user.is_delivery %}
+                    <a href="{% url 'accounts:delivery_profile_update' %}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-truck"></i> Profil livreur
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-user"></i> Informations personnelles</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Nom d'utilisateur:</strong> {{ user.username }}</p>
+                        <p><strong>Email:</strong> {{ user.email }}</p>
+                        <p><strong>Téléphone:</strong> {{ user.phone|default:"Non renseigné" }}</p>
+                        <p><strong>Date de naissance:</strong> {{ user.birth_date|default:"Non renseignée" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Adresse:</strong> {{ user.address|default:"Non renseignée" }}</p>
+                        <p><strong>Ville:</strong> {{ user.city|default:"Non renseignée" }}</p>
+                        <p><strong>Code postal:</strong> {{ user.postal_code|default:"Non renseigné" }}</p>
+                        <p><strong>Pays:</strong> {{ user.country|default:"Non renseigné" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if user.is_seller and seller_profile %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-store"></i> Profil vendeur</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Entreprise:</strong> {{ seller_profile.company_name }}</p>
+                        <p><strong>Note:</strong> 
+                            {% for i in "12345" %}
+                                {% if seller_profile.rating >= i|add:0 %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% else %}
+                                    <i class="far fa-star text-muted"></i>
+                                {% endif %}
+                            {% endfor %}
+                            ({{ seller_profile.rating }}/5)
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Ventes totales:</strong> {{ seller_profile.total_sales }}€</p>
+                        <p><strong>Statut:</strong> 
+                            <span class="badge bg-{% if seller_profile.is_verified %}success{% else %}warning{% endif %}">
+                                {% if seller_profile.is_verified %}Vérifié{% else %}En attente{% endif %}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+                {% if seller_profile.company_description %}
+                    <p><strong>Description:</strong> {{ seller_profile.company_description }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if user.is_delivery and delivery_profile %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-truck"></i> Profil livreur</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Véhicule:</strong> {{ delivery_profile.get_vehicle_type_display }}</p>
+                        <p><strong>Plaque:</strong> {{ delivery_profile.license_plate|default:"Non renseignée" }}</p>
+                        <p><strong>Rayon:</strong> {{ delivery_profile.availability_radius }} km</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Note:</strong> 
+                            {% for i in "12345" %}
+                                {% if delivery_profile.rating >= i|add:0 %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% else %}
+                                    <i class="far fa-star text-muted"></i>
+                                {% endif %}
+                            {% endfor %}
+                            ({{ delivery_profile.rating }}/5)
+                        </p>
+                        <p><strong>Livraisons:</strong> {{ delivery_profile.total_deliveries }}</p>
+                        <p><strong>Disponibilité:</strong> 
+                            <span class="badge bg-{% if delivery_profile.is_available %}success{% else %}danger{% endif %}">
+                                {% if delivery_profile.is_available %}Disponible{% else %}Indisponible{% endif %}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

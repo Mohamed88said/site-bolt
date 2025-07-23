@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Évaluer la livraison #{{ delivery.tracking_number }} - E-Commerce{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2><i class="fas fa-star me-2"></i>Évaluer la livraison #{{ delivery.tracking_number }}</h2>
+    <p class="text-muted">Donnez une note et un commentaire sur la prestation du livreur.</p>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-edit"></i> Formulaire d'évaluation</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-save me-2"></i>Envoyer l'évaluation
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle"></i> Détails de la livraison</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Livreur :</strong> {{ delivery.delivery_person.username }}</p>
+                    <p><strong>Commande :</strong> #{{ delivery.order.id|slice:":8" }}</p>
+                    <p><strong>Livrée le :</strong> {{ delivery.actual_delivery_time|date:"d/m/Y à H:i" }}</p>
+                    {% if delivery.location_point %}
+                        <p><strong>Adresse :</strong> {{ delivery.location_point.name }}</p>
+                        <p>{{ delivery.location_point.full_address }}</p>
+                    {% else %}
+                        <address>
+                            {{ delivery.order.shipping_first_name }} {{ delivery.order.shipping_last_name }}<br>
+                            {{ delivery.order.shipping_address }}<br>
+                            {{ delivery.order.shipping_postal_code }} {{ delivery.order.shipping_city }}<br>
+                            {{ delivery.order.shipping_country }}
+                        </address>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <a href="{% url 'deliveries:detail' delivery.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour aux détails
+        </a>
+    </div>
+</div>
+{% endblock %}

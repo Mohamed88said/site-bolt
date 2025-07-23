@@ -1,0 +1,414 @@
+{% extends 'base.html' %}
+
+{% block title %}Choisir ma localisation - {{ site_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+#map {
+    height: 400px;
+    width: 100%;
+    border-radius: 0.5rem;
+}
+.location-form {
+    max-height: 500px;
+    overflow-y: auto;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-map-marker-alt me-2"></i>Choisir ma localisation</h2>
+            <p class="text-muted">Cliquez sur la carte pour définir votre position exacte, puis complétez les informations.</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-map me-2"></i>Carte interactive</h5>
+                </div>
+                <div class="card-body">
+                    <div id="map"></div>
+                    <div class="mt-3">
+                        <button id="getCurrentLocation" class="btn btn-outline-primary">
+                            <i class="fas fa-crosshairs me-2"></i>Utiliser ma position actuelle
+                        </button>
+                        <button id="searchLocation" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-search me-2"></i>Rechercher un lieu
+                        </button>
+                    </div>
+                    
+                    <!-- Search input -->
+                    <div id="searchContainer" class="mt-3" style="display: none;">
+                        <div class="input-group">
+                            <input type="text" id="searchInput" class="form-control" placeholder="Rechercher un lieu en Guinée...">
+                            <button class="btn btn-primary" type="button" id="performSearch">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <div id="searchResults" class="mt-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-edit me-2"></i>Informations de localisation</h5>
+                </div>
+                <div class="card-body location-form">
+                    <form id="locationForm">
+                        {% csrf_token %}
+                        
+                        <!-- Coordonnées GPS -->
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label">Latitude</label>
+                                <input type="text" id="latitude" class="form-control" readonly>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Longitude</label>
+                                <input type="text" id="longitude" class="form-control" readonly>
+                            </div>
+                        </div>
+                        
+                        <!-- Nom du lieu -->
+                        <div class="mb-3">
+                            <label class="form-label">Nom du lieu *</label>
+                            <input type="text" id="locationName" class="form-control" placeholder="Ex: Chez Mamadou, Marché central..." required>
+                        </div>
+                        
+                        <!-- Localisation administrative -->
+                        <div class="mb-3">
+                            <label class="form-label">Région *</label>
+                            <select id="region" class="form-select" required>
+                                <option value="">Choisir une région</option>
+                                {% for region in regions %}
+                                <option value="{{ region.id }}">{{ region.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Préfecture</label>
+                            <select id="prefecture" class="form-select">
+                                <option value="">Choisir une préfecture</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Commune</label>
+                            <select id="commune" class="form-select">
+                                <option value="">Choisir une commune</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Détails de l'adresse -->
+                        <div class="mb-3">
+                            <label class="form-label">Détails de l'adresse</label>
+                            <textarea id="addressDetails" class="form-control" rows="2" placeholder="Quartier, rue, numéro..."></textarea>
+                        </div>
+                        
+                        <!-- Point de repère -->
+                        <div class="mb-3">
+                            <label class="form-label">Point de repère</label>
+                            <input type="text" id="landmark" class="form-control" placeholder="Ex: Près de la mosquée, face à l'école...">
+                        </div>
+                        
+                        <!-- Instructions d'accès -->
+                        <div class="mb-3">
+                            <label class="form-label">Instructions d'accès</label>
+                            <textarea id="accessInstructions" class="form-control" rows="3" placeholder="Comment arriver à cet endroit..."></textarea>
+                        </div>
+                        
+                        <!-- Libellé personnel -->
+                        <div class="mb-3">
+                            <label class="form-label">Libellé</label>
+                            <select id="label" class="form-select">
+                                <option value="">Choisir un libellé</option>
+                                <option value="Maison">Maison</option>
+                                <option value="Bureau">Bureau</option>
+                                <option value="Famille">Famille</option>
+                                <option value="Ami">Ami</option>
+                                <option value="Autre">Autre</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Adresse principale -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="isPrimary">
+                                <label class="form-check-label" for="isPrimary">
+                                    Définir comme adresse principale
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea id="description" class="form-control" rows="2" placeholder="Description du lieu..."></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100" disabled>
+                            <i class="fas fa-save me-2"></i>Sauvegarder la localisation
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let map;
+let marker;
+let selectedLat = null;
+let selectedLng = null;
+
+// Initialiser la carte
+function initMap() {
+    // Centrer sur Conakry, Guinée
+    map = L.map('map').setView([9.6412, -13.5784], 10);
+    
+    // Ajouter les tuiles OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Gestionnaire de clic sur la carte
+    map.on('click', function(e) {
+        setLocation(e.latlng.lat, e.latlng.lng);
+    });
+}
+
+// Définir la localisation
+function setLocation(lat, lng) {
+    selectedLat = lat;
+    selectedLng = lng;
+    
+    // Supprimer le marqueur existant
+    if (marker) {
+        map.removeLayer(marker);
+    }
+    
+    // Ajouter un nouveau marqueur
+    marker = L.marker([lat, lng]).addTo(map);
+    
+    // Mettre à jour les champs
+    document.getElementById('latitude').value = lat.toFixed(8);
+    document.getElementById('longitude').value = lng.toFixed(8);
+    
+    // Activer le bouton de sauvegarde
+    document.querySelector('button[type="submit"]').disabled = false;
+    
+    // Géocodage inverse pour obtenir des informations sur le lieu
+    reverseGeocode(lat, lng);
+}
+
+// Géocodage inverse
+function reverseGeocode(lat, lng) {
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.display_name) {
+                // Pré-remplir le nom du lieu si vide
+                const nameField = document.getElementById('locationName');
+                if (!nameField.value) {
+                    nameField.value = data.display_name.split(',')[0];
+                }
+                
+                // Pré-remplir les détails d'adresse
+                const addressField = document.getElementById('addressDetails');
+                if (!addressField.value && data.address) {
+                    let addressParts = [];
+                    if (data.address.house_number) addressParts.push(data.address.house_number);
+                    if (data.address.road) addressParts.push(data.address.road);
+                    if (data.address.suburb) addressParts.push(data.address.suburb);
+                    addressField.value = addressParts.join(', ');
+                }
+            }
+        })
+        .catch(error => console.log('Erreur géocodage:', error));
+}
+
+// Obtenir la position actuelle
+document.getElementById('getCurrentLocation').addEventListener('click', function() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            map.setView([lat, lng], 15);
+            setLocation(lat, lng);
+        }, function(error) {
+            alert('Erreur lors de la récupération de votre position: ' + error.message);
+        });
+    } else {
+        alert('La géolocalisation n\'est pas supportée par votre navigateur.');
+    }
+});
+
+// Recherche de lieu
+document.getElementById('searchLocation').addEventListener('click', function() {
+    const container = document.getElementById('searchContainer');
+    container.style.display = container.style.display === 'none' ? 'block' : 'none';
+});
+
+document.getElementById('performSearch').addEventListener('click', function() {
+    const query = document.getElementById('searchInput').value;
+    if (query) {
+        searchLocation(query);
+    }
+});
+
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        const query = this.value;
+        if (query) {
+            searchLocation(query);
+        }
+    }
+});
+
+function searchLocation(query) {
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Guinea')}&limit=5`)
+        .then(response => response.json())
+        .then(data => {
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '';
+            
+            if (data.length > 0) {
+                data.forEach(result => {
+                    const resultDiv = document.createElement('div');
+                    resultDiv.className = 'p-2 border rounded mb-2 cursor-pointer';
+                    resultDiv.style.cursor = 'pointer';
+                    resultDiv.innerHTML = `<strong>${result.display_name}</strong>`;
+                    
+                    resultDiv.addEventListener('click', function() {
+                        const lat = parseFloat(result.lat);
+                        const lng = parseFloat(result.lon);
+                        map.setView([lat, lng], 15);
+                        setLocation(lat, lng);
+                        resultsDiv.innerHTML = '';
+                        document.getElementById('searchContainer').style.display = 'none';
+                    });
+                    
+                    resultsDiv.appendChild(resultDiv);
+                });
+            } else {
+                resultsDiv.innerHTML = '<p class="text-muted">Aucun résultat trouvé</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Erreur de recherche:', error);
+        });
+}
+
+// Gestion des sélecteurs de région/préfecture/commune
+document.getElementById('region').addEventListener('change', function() {
+    const regionId = this.value;
+    const prefectureSelect = document.getElementById('prefecture');
+    const communeSelect = document.getElementById('commune');
+    
+    // Réinitialiser les sélecteurs
+    prefectureSelect.innerHTML = '<option value="">Choisir une préfecture</option>';
+    communeSelect.innerHTML = '<option value="">Choisir une commune</option>';
+    
+    if (regionId) {
+        fetch(`/geolocation/api/prefectures/?region_id=${regionId}`)
+            .then(response => response.json())
+            .then(data => {
+                data.prefectures.forEach(prefecture => {
+                    const option = document.createElement('option');
+                    option.value = prefecture.id;
+                    option.textContent = prefecture.name;
+                    prefectureSelect.appendChild(option);
+                });
+            });
+    }
+});
+
+document.getElementById('prefecture').addEventListener('change', function() {
+    const prefectureId = this.value;
+    const communeSelect = document.getElementById('commune');
+    
+    // Réinitialiser le sélecteur
+    communeSelect.innerHTML = '<option value="">Choisir une commune</option>';
+    
+    if (prefectureId) {
+        fetch(`/geolocation/api/communes/?prefecture_id=${prefectureId}`)
+            .then(response => response.json())
+            .then(data => {
+                data.communes.forEach(commune => {
+                    const option = document.createElement('option');
+                    option.value = commune.id;
+                    option.textContent = commune.name;
+                    communeSelect.appendChild(option);
+                });
+            });
+    }
+});
+
+// Soumission du formulaire
+document.getElementById('locationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (!selectedLat || !selectedLng) {
+        alert('Veuillez sélectionner une position sur la carte');
+        return;
+    }
+    
+    const formData = {
+        name: document.getElementById('locationName').value,
+        description: document.getElementById('description').value,
+        latitude: selectedLat,
+        longitude: selectedLng,
+        region_id: document.getElementById('region').value || null,
+        prefecture_id: document.getElementById('prefecture').value || null,
+        commune_id: document.getElementById('commune').value || null,
+        address_details: document.getElementById('addressDetails').value,
+        landmark: document.getElementById('landmark').value,
+        access_instructions: document.getElementById('accessInstructions').value,
+        label: document.getElementById('label').value,
+        is_primary: document.getElementById('isPrimary').checked
+    };
+    
+    fetch('/geolocation/save/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            window.location.href = `/geolocation/detail/${data.location_id}/`;
+        } else {
+            alert('Erreur: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Erreur lors de la sauvegarde');
+    });
+});
+
+// Initialiser la carte au chargement de la page
+document.addEventListener('DOMContentLoaded', function() {
+    initMap();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block title %}{% trans "Choisir un livreur" %} - E-Commerce{% endblock %}
+
+{% block extra_css %}
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css" rel="stylesheet">
+<style>
+    #deliveryMap {
+        height: 500px;
+        width: 100%;
+        border-radius: 0.5rem;
+        border: 1px solid #ddd;
+    }
+    .delivery-info {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    .alert {
+        margin-top: 1rem;
+    }
+    .list-group-item {
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    .input-group {
+        width: 100%;
+    }
+    .btn-sm {
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-4">
+    <h2><i class="fas fa-map-marker-alt me-2"></i>{% trans "Choisir un livreur pour la livraison #" %}{{ delivery.tracking_number }}</h2>
+    <p class="text-muted">{% trans "Cliquez sur un marqueur pour voir les détails du livreur et proposer un prix ou accepter une offre." %}</p>
+
+    {% if messages %}
+        <div class="alert alert-dismissible fade show" role="alert">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-map me-2"></i>{% trans "Carte des livreurs disponibles" %}</h5>
+                </div>
+                <div class="card-body">
+                    {% if delivery.location_point.latitude and delivery.location_point.longitude or delivery_persons %}
+                        <div id="deliveryMap"></div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            {% trans "Aucune donnée de localisation disponible pour afficher la carte. Veuillez vérifier l'adresse de livraison ou les profils des livreurs." %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle me-2"></i>{% trans "Détails de la livraison" %}</h5>
+                </div>
+                <div class="card-body delivery-info">
+                    <p><strong>{% trans "Commande" %}:</strong> #{{ delivery.order.id|slice:":8" }}</p>
+                    <p><strong>{% trans "Adresse de livraison" %}:</strong>
+                        {% if delivery.location_point %}
+                            {{ delivery.location_point.full_address|default:"Non défini" }}
+                        {% else %}
+                            {{ delivery.order.full_shipping_address|default:"Non défini" }}
+                        {% endif %}
+                    </p>
+                    <p><strong>{% trans "Prix estimé" %}:</strong> {{ delivery.delivery_cost|default:"Non défini" }}€</p>
+                    <p><strong>{% trans "Payé par" %}:</strong> {{ delivery.get_paid_by_display|default:"Acheteur" }}</p>
+                    <h6>{% trans "Livreurs disponibles" %}:</h6>
+                    {% if delivery_persons %}
+                        <ul class="list-group">
+                            {% for person in delivery_persons %}
+                                <li class="list-group-item">
+                                    <p><strong>{% trans "Nom" %}:</strong> {{ person.username }}</p>
+                                    <p><strong>{% trans "Téléphone" %}:</strong> {{ person.phone_number|default:"Non renseigné" }}</p>
+                                    <p><strong>{% trans "Véhicule" %}:</strong> {{ person.vehicle_type|default:"Non spécifié" }}</p>
+                                    <p><strong>{% trans "Distance" %}:</strong> {{ person.distance|default:"N/A" }} km</p>
+                                    <p><strong>{% trans "Note" %}:</strong> {{ person.rating|floatformat:1 }}/5</p>
+                                    {% with request=person.requests|first %}
+                                        {% if request %}
+                                            <p><strong>{% trans "Contre-prix" %}:</strong> {{ request.proposed_cost|default:"Non défini" }}€</p>
+                                            <form action="{% url 'deliveries:accept' request_id=request.id %}" method="post">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-success btn-sm">{% trans "Accepter ce livreur" %}</button>
+                                            </form>
+                                        {% else %}
+                                            <form action="{% url 'deliveries:assign_delivery_person' delivery_id=delivery.id %}" method="post">
+                                                {% csrf_token %}
+                                                <div class="input-group mb-2">
+                                                    <input type="number" step="0.01" name="proposed_cost" class="form-control" placeholder="{% trans 'Proposer un prix (€)' %}" value="{{ delivery.delivery_cost|default:'0' }}" required>
+                                                    <input type="hidden" name="delivery_person_id" value="{{ person.id }}">
+                                                    <button type="submit" class="btn btn-primary btn-sm">{% trans "Proposer" %}</button>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label for="paid_by_{{ person.id }}" class="form-label">{% trans "Payé par" %}</label>
+                                                    <select class="form-select" id="paid_by_{{ person.id }}" name="paid_by" required>
+                                                        <option value="buyer" {% if delivery.paid_by == 'buyer' %}selected{% endif %}>{% trans "Acheteur" %}</option>
+                                                        <option value="seller" {% if delivery.paid_by == 'seller' %}selected{% endif %}>{% trans "Vendeur" %}</option>
+                                                    </select>
+                                                </div>
+                                            </form>
+                                        {% endif %}
+                                    {% endwith %}
+                                    {% if person.phone_number %}
+                                        <a href="tel:{{ person.phone_number }}" class="btn btn-outline-primary btn-sm mt-2">
+                                            <i class="fas fa-phone"></i> {% trans "Contacter" %}
+                                        </a>
+                                    {% else %}
+                                        <button class="btn btn-outline-primary btn-sm mt-2" disabled>{% trans "Téléphone non disponible" %}</button>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">{% trans "Aucun livreur disponible pour le moment." %}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{% url 'deliveries:detail' pk=delivery.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> {% trans "Retour aux détails de la livraison" %}
+        </a>
+    </div>
+</div>
+
+<script id="delivery-persons-data" type="application/json">
+    {{ delivery_persons|json_script }}
+</script>
+
+{% block extra_js %}
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js"></script>
+<script src="{% static 'js/map.js' %}"></script>
+<script>
+    mapboxgl.accessToken = '{{ mapbox_api_key|escapejs }}';
+    // Les données des livreurs sont chargées via l'élément JSON
+    const deliveryPersonsData = JSON.parse(document.getElementById('delivery-persons-data').textContent);
+</script>
+{% endblock %}

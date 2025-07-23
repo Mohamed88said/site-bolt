@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes Conversations{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Mes Conversations</h2>
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            {% if conversation_data %}
+                <div class="list-group">
+                    {% for item in conversation_data %}
+                    <a href="{% url 'messaging:conversation_detail' item.conversation.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">
+                                {% if item.recipient %}
+                                    {{ item.recipient.get_full_name|default:item.recipient.username }}
+                                {% else %}
+                                    Conversation sans destinataire
+                                {% endif %}
+                            </h5>
+                            <small class="text-muted">{{ item.conversation.updated_at|date:"d/m/Y H:i" }}</small>
+                        </div>
+                        <p class="mb-1">
+                            {% if item.conversation.last_message %}
+                                {{ item.conversation.last_message.content|truncatechars:50 }}
+                                {% if item.conversation.last_message.attachment %}
+                                    <i class="fas fa-file ms-1"></i>
+                                {% endif %}
+                            {% else %}
+                                Nouvelle conversation
+                            {% endif %}
+                        </p>
+                        {% if item.has_unread_messages %}
+                            <span class="badge bg-primary rounded-pill">Nouveau</span>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted text-center">Vous n'avez aucune conversation pour le moment.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

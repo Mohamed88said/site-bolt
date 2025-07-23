@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Connexion - E-Commerce{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-user-circle fa-3x text-primary"></i>
+                    <h3 class="mt-2">Connexion</h3>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                        <i class="fas fa-sign-in-alt"></i> Se connecter
+                    </button>
+                </form>
+                
+                <div class="text-center">
+                    <p class="mb-2">
+                        <a href="{% url 'accounts:password_reset' %}" class="text-decoration-none">
+                            Mot de passe oublié ?
+                        </a>
+                    </p>
+                    <p>
+                        Pas encore de compte ? 
+                        <a href="{% url 'accounts:register' %}" class="text-decoration-none">
+                            S'inscrire
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

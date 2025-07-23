@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Mentions légales - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-gavel me-2"></i>Mentions légales</h2>
+                </div>
+                <div class="card-body">
+                    <h3>1. Informations légales</h3>
+                    <p><strong>Nom du site :</strong> {{ site_name }}</p>
+                    <p><strong>Propriétaire :</strong> Mohamed Said Diallo</p>
+                    <p><strong>Email :</strong> mohamedsaiddiallo88@gmail.com</p>
+                    <p><strong>Téléphones :</strong> +33 06 28 53 09 45 (France) / +224 610 267 054 (Guinée)</p>
+                    <p><strong>Siège social :</strong> Conakry, Guinée</p>
+                    
+                    <h3>2. Hébergement</h3>
+                    <p>Le site est hébergé par un prestataire technique dont les coordonnées sont disponibles sur demande.</p>
+                    
+                    <h3>3. Propriété intellectuelle</h3>
+                    <p>L'ensemble du contenu de ce site (textes, images, vidéos, logos, etc.) est protégé par le droit d'auteur. Toute reproduction, même partielle, est interdite sans autorisation préalable.</p>
+                    
+                    <h3>4. Données personnelles</h3>
+                    <p>Conformément à la loi, vous disposez d'un droit d'accès, de rectification et de suppression des données vous concernant. Pour exercer ce droit, contactez-nous à l'adresse email mentionnée ci-dessus.</p>
+                    
+                    <h3>5. Cookies</h3>
+                    <p>Ce site utilise des cookies pour améliorer votre expérience de navigation. En continuant à utiliser ce site, vous acceptez l'utilisation de cookies.</p>
+                    
+                    <h3>6. Responsabilité</h3>
+                    <p>Le propriétaire du site ne peut être tenu responsable des dommages directs ou indirects causés au matériel de l'utilisateur lors de l'accès au site.</p>
+                    
+                    <h3>7. Droit applicable</h3>
+                    <p>Le présent site est soumis au droit guinéen. En cas de litige, les tribunaux guinéens seront seuls compétents.</p>
+                    
+                    <div class="mt-4">
+                        <p><em>Dernière mise à jour : {{ "now"|date:"d/m/Y" }}</em></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

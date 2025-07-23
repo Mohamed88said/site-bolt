@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Vérifier une localisation - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2><i class="fas fa-check-circle me-2"></i>Vérifier {{ location_point.name }}</h2>
+    <p class="text-muted">Confirmez l'exactitude de cette localisation ou proposez une correction.</p>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-map-marker-alt"></i> Détails de la localisation</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Nom :</strong> {{ location_point.name }}</p>
+                    <p><strong>Adresse complète :</strong> {{ location_point.full_address }}</p>
+                    <p><strong>Coordonnées :</strong> {{ location_point.latitude }}, {{ location_point.longitude }}</p>
+                    {% if location_point.landmark %}
+                        <p><strong>Point de repère :</strong> {{ location_point.landmark }}</p>
+                    {% endif %}
+                    {% if location_point.access_instructions %}
+                        <p><strong>Instructions d'accès :</strong> {{ location_point.access_instructions }}</p>
+                    {% endif %}
+                    <a href="{{ location_point.google_maps_url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-external-link-alt"></i> Voir sur Google Maps
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-edit"></i> Formulaire de vérification</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Cette localisation est-elle exacte ?</label>
+                            <div class="form-check">
+                                <input type="radio" name="is_accurate" value="true" class="form-check-input" required>
+                                <label class="form-check-label">Oui, exacte</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" name="is_accurate" value="false" class="form-check-input">
+                                <label class="form-check-label">Non, nécessite une correction</label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Correction suggérée</label>
+                            <textarea name="suggested_correction" class="form-control" rows="3" placeholder="Décrivez la correction nécessaire..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description locale</label>
+                            <textarea name="local_description" class="form-control" rows="3" placeholder="Ajoutez des détails locaux utiles..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-save me-2"></i>Soumettre la vérification
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <a href="{% url 'geolocation:location_detail' location_point.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour aux détails
+        </a>
+    </div>
+</div>
+{% endblock %}

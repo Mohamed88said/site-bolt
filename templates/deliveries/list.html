@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}Livraisons - E-Commerce{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-truck"></i> 
+        {% if user.is_delivery %}Mes Livraisons{% elif user.is_buyer %}Mes Livraisons{% else %}Livraisons{% endif %}
+    </h2>
+    {% if user.is_delivery %}
+    <a href="{% url 'deliveries:available' %}" class="btn btn-primary">
+        <i class="fas fa-search"></i> Livraisons disponibles
+    </a>
+    {% endif %}
+</div>
+
+{% if deliveries %}
+<div class="row">
+    {% for delivery in deliveries %}
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <strong>Livraison #{{ delivery.tracking_number }}</strong>
+                        <br>
+                        <small class="text-muted">Commande #{{ delivery.order.id|slice:":8" }}</small>
+                    </div>
+                    <div class="col-md-2">
+                        <span class="badge bg-{% if delivery.status == 'completed' %}success{% elif delivery.status == 'cancelled' %}danger{% elif delivery.status == 'in_progress' %}info{% else %}warning{% endif %}">
+                            {{ delivery.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="col-md-2">
+                        {% if delivery.delivery_person %}
+                            <small>{{ delivery.delivery_person.username }}</small>
+                        {% else %}
+                            <small class="text-muted">Non assignée</small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2">
+                        <strong>{{ delivery.delivery_cost }}€</strong>
+                    </div>
+                    <div class="col-md-3 text-end">
+                        <a href="{% url 'deliveries:detail' delivery.pk %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-eye"></i> Détails
+                        </a>
+                        {% if user.is_delivery and delivery.delivery_person == user %}
+                            {% if delivery.status == 'assigned' %}
+                            <a href="{% url 'deliveries:start' delivery.id %}" class="btn btn-success btn-sm">
+                                <i class="fas fa-play"></i> Démarrer
+                            </a>
+                            {% elif delivery.status == 'in_progress' %}
+                            <a href="{% url 'deliveries:complete' delivery.id %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-check"></i> Terminer
+                            </a>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Adresse de livraison:</h6>
+                        <address class="mb-0">
+                            {{ delivery.order.shipping_first_name }} {{ delivery.order.shipping_last_name }}<br>
+                            {{ delivery.order.shipping_address }}<br>
+                            {{ delivery.order.shipping_postal_code }} {{ delivery.order.shipping_city }}
+                        </address>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Articles à livrer:</h6>
+                        {% for item in delivery.order.items.all|slice:":3" %}
+                            <small>{{ item.quantity }}x {{ item.product.name|truncatechars:30 }}</small><br>
+                        {% endfor %}
+                        {% if delivery.order.items.count > 3 %}
+                            <small class="text-muted">... et {{ delivery.order.items.count|add:"-3" }} autre{{ delivery.order.items.count|add:"-3"|pluralize }} article{{ delivery.order.items.count|add:"-3"|pluralize }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if is_paginated %}
+<nav aria-label="Pagination">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Précédent</a>
+            </li>
+        {% endif %}
+        
+        <li class="page-item active">
+            <span class="page-link">{{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>
+        </li>
+        
+        {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Suivant</a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-truck fa-5x text-muted mb-4"></i>
+    <h3>Aucune livraison</h3>
+    <p class="text-muted mb-4">
+        {% if user.is_delivery %}
+            Aucune livraison assignée pour le moment.
+        {% else %}
+            Aucune livraison en cours.
+        {% endif %}
+    </p>
+    {% if user.is_delivery %}
+    <a href="{% url 'deliveries:available' %}" class="btn btn-primary">
+        <i class="fas fa-search"></i> Voir les livraisons disponibles
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

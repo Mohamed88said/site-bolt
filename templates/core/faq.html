@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block title %}FAQ - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <h2 class="text-center mb-5"><i class="fas fa-question-circle me-2"></i>Questions fréquemment posées</h2>
+            
+            <!-- Navigation par catégories -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap justify-content-center gap-2">
+                                <button class="btn btn-outline-primary active" data-category="all">
+                                    <i class="fas fa-list me-1"></i>Toutes
+                                </button>
+                                <button class="btn btn-outline-primary" data-category="general">
+                                    <i class="fas fa-info me-1"></i>Général
+                                </button>
+                                <button class="btn btn-outline-primary" data-category="account">
+                                    <i class="fas fa-user me-1"></i>Compte
+                                </button>
+                                <button class="btn btn-outline-primary" data-category="orders">
+                                    <i class="fas fa-shopping-bag me-1"></i>Commandes
+                                </button>
+                                <button class="btn btn-outline-primary" data-category="payments">
+                                    <i class="fas fa-credit-card me-1"></i>Paiements
+                                </button>
+                                <button class="btn btn-outline-primary" data-category="delivery">
+                                    <i class="fas fa-truck me-1"></i>Livraison
+                                </button>
+                                <button class="btn btn-outline-primary" data-category="returns">
+                                    <i class="fas fa-undo me-1"></i>Retours
+                                </button>
+                                <button class="btn btn-outline-primary" data-category="sellers">
+                                    <i class="fas fa-store me-1"></i>Vendeurs
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Questions par catégorie -->
+            <div class="accordion" id="faqAccordion">
+                {% for category, questions in faq_by_category.items %}
+                <div class="faq-category" data-category="{{ category }}">
+                    {% for faq in questions %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading{{ faq.id }}">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ faq.id }}">
+                                {{ faq.question }}
+                            </button>
+                        </h2>
+                        <div id="collapse{{ faq.id }}" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                {{ faq.answer|linebreaks }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Section contact -->
+            <div class="row mt-5">
+                <div class="col-12">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5><i class="fas fa-headset me-2"></i>Vous ne trouvez pas votre réponse ?</h5>
+                            <p class="mb-3">Notre équipe support est là pour vous aider</p>
+                            <div class="d-flex justify-content-center gap-3">
+                                <a href="{% url 'core:contact' %}" class="btn btn-primary">
+                                    <i class="fas fa-envelope me-2"></i>Nous contacter
+                                </a>
+                                {% if user.is_authenticated %}
+                                <button class="btn btn-outline-primary" onclick="startSupportChat()">
+                                    <i class="fas fa-comment me-2"></i>Chat en direct
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryButtons = document.querySelectorAll('[data-category]');
+    const faqCategories = document.querySelectorAll('.faq-category');
+    
+    categoryButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const category = this.dataset.category;
+            
+            // Mettre à jour les boutons actifs
+            categoryButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Afficher/masquer les catégories
+            faqCategories.forEach(cat => {
+                if (category === 'all' || cat.dataset.category === category) {
+                    cat.style.display = 'block';
+                } else {
+                    cat.style.display = 'none';
+                }
+            });
+            
+            // Fermer tous les accordéons ouverts
+            document.querySelectorAll('.accordion-collapse.show').forEach(collapse => {
+                new bootstrap.Collapse(collapse, {toggle: false}).hide();
+            });
+        });
+    });
+});
+
+function startSupportChat() {
+    // Fonction pour démarrer un chat avec le support
+    alert('Fonctionnalité de chat en cours de développement');
+}
+</script>
+{% endblock %}

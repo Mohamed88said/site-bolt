@@ -1,0 +1,982 @@
+/* Global Styles - Design Africain Moderne */
+:root {
+    /* Couleurs inspirées de l'Afrique moderne */
+    --primary-color: #D4AF37; /* Or africain */
+    --secondary-color: #8B4513; /* Terre cuite */
+    --accent-color: #FF6B35; /* Orange coucher de soleil */
+    --success-color: #228B22; /* Vert savane */
+    --danger-color: #DC143C; /* Rouge passion */
+    --warning-color: #FFD700; /* Jaune soleil */
+    --info-color: #4682B4; /* Bleu ciel africain */
+    --light-color: #FFF8DC; /* Beige sable */
+    --dark-color: #2F1B14; /* Brun ébène */
+    
+    /* Motifs et textures */
+    --pattern-primary: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D4AF37' fill-opacity='0.1'%3E%3Cpath d='M30 30c0-11.046-8.954-20-20-20s-20 8.954-20 20 8.954 20 20 20 20-8.954 20-20zm0 0c0 11.046 8.954 20 20 20s20-8.954 20-20-8.954-20-20-20-20 8.954-20 20z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    --pattern-secondary: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%238B4513' fill-opacity='0.05'%3E%3Cpath d='M20 20c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10zm10 0c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10z'/%3E%3C/g%3E%3C/svg%3E");
+    
+    --border-radius: 12px;
+    --box-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: var(--dark-color);
+    background: linear-gradient(135deg, #FFF8DC 0%, #F5F5DC 100%);
+    background-attachment: fixed;
+    position: relative;
+}
+
+/* Motif de fond africain subtil */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: var(--pattern-primary);
+    opacity: 0.03;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+    color: var(--dark-color);
+}
+
+.text-gradient {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Buttons - Style africain moderne */
+.btn {
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    transition: var(--transition);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn:hover::before {
+    left: 100%;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), #B8860B);
+    color: white;
+    border: 2px solid transparent;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #B8860B, var(--primary-color));
+    color: white;
+    box-shadow: 0 8px 25px rgba(212, 175, 55, 0.4);
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, var(--secondary-color), #A0522D);
+    color: white;
+}
+
+.btn-accent {
+    background: linear-gradient(135deg, var(--accent-color), #FF4500);
+    color: white;
+}
+
+.btn-outline-primary {
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    background: transparent;
+}
+
+.btn-outline-primary:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: translateY(-2px);
+}
+
+/* Cards - Design africain élégant */
+.card {
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+    background: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color), var(--primary-color));
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(212, 175, 55, 0.2);
+}
+
+.card-header {
+    background: linear-gradient(135deg, var(--light-color), #F0E68C);
+    border-bottom: 2px solid var(--primary-color);
+    border-radius: var(--border-radius) var(--border-radius) 0 0 !important;
+    position: relative;
+}
+
+.card-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--pattern-secondary);
+}
+
+/* Product Cards - Style marketplace africain */
+.product-card {
+    transition: var(--transition);
+    height: 100%;
+    position: relative;
+}
+
+.product-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    opacity: 0;
+    transition: var(--transition);
+}
+
+.product-card:hover::before {
+    opacity: 1;
+}
+
+.product-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(212, 175, 55, 0.25);
+}
+
+.product-card .card-img-top {
+    transition: var(--transition);
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    position: relative;
+}
+
+.product-card:hover .card-img-top {
+    transform: scale(1.05);
+}
+
+.product-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.9), rgba(255, 107, 53, 0.9));
+    opacity: 0;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+
+.product-card:hover .product-overlay {
+    opacity: 1;
+}
+
+/* Forms - Style africain moderne */
+.form-control, .form-select {
+    border-radius: var(--border-radius);
+    border: 2px solid #E6E6FA;
+    transition: var(--transition);
+    padding: 0.75rem 1rem;
+    background: white;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.25);
+    background: var(--light-color);
+}
+
+.form-floating > .form-control:focus ~ label,
+.form-floating > .form-control:not(:placeholder-shown) ~ label {
+    color: var(--primary-color);
+}
+
+/* Navigation - Style africain élégant */
+.navbar {
+    box-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    background: linear-gradient(135deg, var(--primary-color), #B8860B) !important;
+    position: relative;
+}
+
+.navbar::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--pattern-secondary);
+    opacity: 0.3;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: white !important;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.nav-link {
+    font-weight: 500;
+    transition: var(--transition);
+    color: rgba(255, 255, 255, 0.9) !important;
+    position: relative;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: var(--accent-color);
+    transition: var(--transition);
+    transform: translateX(-50%);
+}
+
+.nav-link:hover::after {
+    width: 80%;
+}
+
+.nav-link:hover {
+    color: white !important;
+    transform: translateY(-1px);
+}
+
+/* Dropdown - Style africain */
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 10px 30px rgba(212, 175, 55, 0.2);
+    border-radius: var(--border-radius);
+    padding: 0.5rem 0;
+    background: white;
+    border-top: 3px solid var(--primary-color);
+}
+
+.dropdown-item {
+    padding: 0.75rem 1.5rem;
+    transition: var(--transition);
+    position: relative;
+}
+
+.dropdown-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    transition: var(--transition);
+}
+
+.dropdown-item:hover::before {
+    width: 4px;
+}
+
+.dropdown-item:hover {
+    background: linear-gradient(135deg, var(--light-color), #F0E68C);
+    color: var(--dark-color);
+    padding-left: 2rem;
+}
+
+/* Hero Section - Style africain majestueux */
+.hero-section {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    border-radius: var(--border-radius);
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--pattern-primary);
+    opacity: 0.1;
+}
+
+.hero-section::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+}
+
+/* Category Cards - Inspiration africaine */
+.category-card {
+    transition: var(--transition);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.category-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--pattern-secondary);
+    opacity: 0;
+    transition: var(--transition);
+}
+
+.category-card:hover::before {
+    opacity: 1;
+}
+
+.category-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(212, 175, 55, 0.25);
+}
+
+/* Rating Stars - Style doré africain */
+.rating {
+    font-size: 1rem;
+}
+
+.rating i {
+    margin-right: 2px;
+    transition: var(--transition);
+    color: var(--warning-color);
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+
+.rating i:hover {
+    transform: scale(1.2);
+    color: var(--primary-color);
+}
+
+/* Price Display - Style marchand africain */
+.price {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+
+.price .text-decoration-line-through {
+    font-size: 1rem;
+    opacity: 0.7;
+    color: var(--secondary-color);
+}
+
+/* Badges - Style africain moderne */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.5em 0.75em;
+    border-radius: 20px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-gradient {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+}
+
+.badge-african {
+    background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+    color: white;
+}
+
+/* Alerts - Style africain */
+.alert {
+    border: none;
+    border-radius: var(--border-radius);
+    border-left: 5px solid;
+    position: relative;
+    padding: 1rem 1.5rem;
+}
+
+.alert::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--pattern-secondary);
+    opacity: 0.3;
+}
+
+.alert-success {
+    border-left-color: var(--success-color);
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.1), rgba(34, 139, 34, 0.05));
+    color: var(--success-color);
+}
+
+.alert-danger {
+    border-left-color: var(--danger-color);
+    background: linear-gradient(135deg, rgba(220, 20, 60, 0.1), rgba(220, 20, 60, 0.05));
+    color: var(--danger-color);
+}
+
+.alert-warning {
+    border-left-color: var(--warning-color);
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 215, 0, 0.05));
+    color: #B8860B;
+}
+
+.alert-info {
+    border-left-color: var(--info-color);
+    background: linear-gradient(135deg, rgba(70, 130, 180, 0.1), rgba(70, 130, 180, 0.05));
+    color: var(--info-color);
+}
+
+/* Pagination - Style africain */
+.pagination .page-link {
+    border: none;
+    color: var(--primary-color);
+    margin: 0 3px;
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+    padding: 0.75rem 1rem;
+    background: white;
+    box-shadow: 0 2px 8px rgba(212, 175, 55, 0.1);
+}
+
+.pagination .page-link:hover {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3);
+}
+
+.pagination .page-item.active .page-link {
+    background: linear-gradient(135deg, var(--primary-color), #B8860B);
+    border: none;
+    color: white;
+}
+
+/* Tables - Style africain moderne */
+.table {
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--box-shadow);
+    background: white;
+}
+
+.table thead th {
+    background: linear-gradient(135deg, var(--light-color), #F0E68C);
+    border: none;
+    font-weight: 600;
+    color: var(--dark-color);
+    padding: 1rem;
+    position: relative;
+}
+
+.table thead th::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--primary-color);
+}
+
+.table tbody tr {
+    transition: var(--transition);
+}
+
+.table tbody tr:hover {
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.05), rgba(255, 107, 53, 0.05));
+    transform: scale(1.01);
+}
+
+/* Footer - Style africain élégant */
+footer {
+    background: linear-gradient(135deg, var(--dark-color), var(--secondary-color)) !important;
+    position: relative;
+}
+
+footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color), var(--primary-color));
+}
+
+.social-links a {
+    transition: var(--transition);
+    display: inline-block;
+    padding: 0.5rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 0.25rem;
+}
+
+.social-links a:hover {
+    background: var(--primary-color);
+    color: white !important;
+    transform: translateY(-3px) scale(1.1);
+    box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4);
+}
+
+/* Animations africaines */
+@keyframes fadeInAfrican {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes slideInAfrican {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pulseAfrican {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(212, 175, 55, 0);
+    }
+}
+
+.fade-in-african {
+    animation: fadeInAfrican 0.8s ease-out;
+}
+
+.slide-in-african {
+    animation: slideInAfrican 0.8s ease-out;
+}
+
+.pulse-african {
+    animation: pulseAfrican 2s infinite;
+}
+
+/* Loading Spinner - Style africain */
+.spinner-african {
+    border: 4px solid rgba(212, 175, 55, 0.3);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Custom Scrollbar - Style africain */
+::-webkit-scrollbar {
+    width: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--light-color);
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    border-radius: 6px;
+    border: 2px solid var(--light-color);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #B8860B, #FF4500);
+}
+
+/* Image Zoom Effect - Style africain */
+.image-zoom {
+    overflow: hidden;
+    border-radius: var(--border-radius);
+    position: relative;
+}
+
+.image-zoom::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--pattern-primary);
+    opacity: 0;
+    transition: var(--transition);
+    z-index: 1;
+}
+
+.image-zoom:hover::before {
+    opacity: 0.1;
+}
+
+.image-zoom img {
+    transition: var(--transition);
+}
+
+.image-zoom:hover img {
+    transform: scale(1.1);
+}
+
+/* Glassmorphism Effect - Style africain */
+.glass-african {
+    background: rgba(212, 175, 55, 0.1);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: var(--border-radius);
+}
+
+/* Motifs décoratifs africains */
+.african-pattern-1 {
+    background-image: radial-gradient(circle at 25% 25%, var(--primary-color) 2px, transparent 2px),
+                      radial-gradient(circle at 75% 75%, var(--accent-color) 2px, transparent 2px);
+    background-size: 20px 20px;
+    opacity: 0.1;
+}
+
+.african-pattern-2 {
+    background-image: linear-gradient(45deg, var(--primary-color) 25%, transparent 25%),
+                      linear-gradient(-45deg, var(--primary-color) 25%, transparent 25%),
+                      linear-gradient(45deg, transparent 75%, var(--accent-color) 75%),
+                      linear-gradient(-45deg, transparent 75%, var(--accent-color) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    opacity: 0.05;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .hero-section h1 {
+        font-size: 2rem;
+    }
+    
+    .product-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.25rem;
+    }
+    
+    .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .container-fluid {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .hero-section {
+        padding: 2rem 1rem;
+    }
+    
+    .social-links a {
+        margin: 0 0.1rem;
+        padding: 0.4rem;
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --dark-color: #FFF8DC;
+        --light-color: #2F1B14;
+    }
+    
+    body {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2F1B14 100%);
+        color: var(--dark-color);
+    }
+    
+    .card {
+        background: #2F1B14;
+        color: var(--dark-color);
+        border: 1px solid rgba(212, 175, 55, 0.2);
+    }
+    
+    .form-control, .form-select {
+        background: #2F1B14;
+        border-color: rgba(212, 175, 55, 0.3);
+        color: var(--dark-color);
+    }
+}
+
+/* Print Styles */
+@media print {
+    .navbar, .footer, .btn, .alert {
+        display: none !important;
+    }
+    
+    .card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+    
+    body {
+        background: white;
+        color: black;
+    }
+}
+
+/* Accessibility */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Focus Styles */
+.btn:focus,
+.form-control:focus,
+.form-select:focus {
+    outline: 3px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    .btn {
+        border: 2px solid currentColor;
+    }
+    
+    .card {
+        border: 2px solid currentColor;
+    }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Styles spécifiques aux fonctionnalités */
+.verification-badge {
+    background: linear-gradient(135deg, var(--success-color), #32CD32);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 15px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.stock-alert {
+    background: linear-gradient(135deg, var(--warning-color), #FFA500);
+    color: var(--dark-color);
+    padding: 0.5rem;
+    border-radius: var(--border-radius);
+    border-left: 4px solid var(--accent-color);
+}
+
+.price-tag {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    font-weight: 600;
+    display: inline-block;
+    position: relative;
+    overflow: hidden;
+}
+
+.price-tag::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.5s;
+}
+
+.price-tag:hover::before {
+    left: 100%;
+}
+
+/* Styles pour les notifications */
+.notification-badge {
+    background: var(--danger-color);
+    color: white;
+    border-radius: 50%;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 1.5rem;
+    text-align: center;
+}
+
+/* Styles pour la géolocalisation */
+.location-card {
+    border: 2px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    background: linear-gradient(135deg, var(--light-color), #F0E68C);
+    position: relative;
+}
+
+.location-card::before {
+    content: '📍';
+    position: absolute;
+    top: -10px;
+    left: 10px;
+    background: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 15px;
+    font-size: 0.875rem;
+}
+
+/* Styles pour les avis */
+.review-card {
+    border-left: 4px solid var(--primary-color);
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.05), rgba(255, 107, 53, 0.05));
+    transition: var(--transition);
+}
+
+.review-card:hover {
+    transform: translateX(5px);
+    box-shadow: 0 5px 15px rgba(212, 175, 55, 0.2);
+}
+
+/* Styles pour le dashboard */
+.stat-card {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 50%;
+    background: var(--pattern-primary);
+    opacity: 0.1;
+}
+
+.stat-card .stat-icon {
+    font-size: 2.5rem;
+    opacity: 0.8;
+}
+
+.stat-card .stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0.5rem 0;
+}
+
+.stat-card .stat-label {
+    font-size: 0.875rem;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}

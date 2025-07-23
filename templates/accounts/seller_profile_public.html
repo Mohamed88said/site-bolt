@@ -1,0 +1,403 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ seller.seller_profile.company_name }} - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- En-tête du profil vendeur -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4 shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-3 text-center">
+                            {% if seller.seller_profile.logo %}
+                                <img src="{{ seller.seller_profile.logo.url }}" alt="{{ seller.seller_profile.company_name }}" 
+                                     class="img-fluid rounded-circle.mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                            {% else %}
+                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center mb-3 mx-auto" 
+                                     style="width: 150px; height: 150px;">
+                                    <i class="fas fa-store fa-4x text-muted"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-9">
+                            <div class="d-flex align-items-center mb-2">
+                                <h2 class="mb-0 me-3">{{ seller.seller_profile.company_name }}</h2>
+                                {% if seller.seller_profile.is_verified %}
+                                    <span class="badge bg-success fs-6">
+                                        <i class="fas fa-check-circle me-1"></i>Vendeur certifié
+                                    </span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="rating mb-2">
+                                {% for i in "12345" %}
+                                    {% if rating_avg >= forloop.counter %}
+                                        <i class="fas fa-star text-warning"></i>
+                                    {% else %}
+                                        <i class="far fa-star text-muted"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                <span class="ms-2">{{ rating_avg }}/5 ({{ reviews_count }} avis)</span>
+                            </div>
+                            
+                            {% if seller.seller_profile.company_description %}
+                                <p class="text-muted mb-3">{{ seller.seller_profile.company_description|truncatewords:30 }}</p>
+                            {% endif %}
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <h5 class="text-primary mb-0">{{ products_count }}</h5>
+                                        <small class="text-muted">Produits</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <h5 class="text-success mb-0">{{ seller.seller_profile.total_sales|default:0 }}€</h5>
+                                        <small class="text-muted">Ventes totales</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <h5 class="text-info mb-0">{{ orders_count }}</h5>
+                                        <small class="text-muted">Commandes</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% if user.is_authenticated and user != seller %}
+                            <div class="mt-3">
+                                <button class="btn btn-primary me-2" onclick="startConversation({{ seller.id }})">
+                                    <i class="fas fa-comment me-1"></i>Contacter le vendeur
+                                </button>
+                                {% if seller.seller_profile.website %}
+                                <a href="{{ seller.seller_profile.website }}" target="_blank" class="btn btn-outline-secondary">
+                                    <i class="fas fa-external-link-alt me-1"></i>Site web
+                                </a>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Navigation -->
+    <div class="row">
+        <div class="col-12">
+            <ul class="nav nav-tabs mb-4" id="sellerTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="products-tab" data-bs-toggle="tab" data-bs-target="#products" type="button">
+                        <i class="fas fa-boxes me-1"></i>Produits ({{ products_count }})
+                    </button>
+                </li>
+                {% if blog_posts_count > 0 %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="blog-tab" data-bs-toggle="tab" data-bs-target="#blog" type="button">
+                        <i class="fas fa-blog me-1"></i>Blog ({{ blog_posts_count }})
+                    </button>
+                </li>
+                {% endif %}
+                {% if reviews_count > 0 %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews" type="button">
+                        <i class="fas fa-star me-1"></i>Avis ({{ reviews_count }})
+                    </button>
+                </li>
+                {% endif %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="about-tab" data-bs-toggle="tab" data-bs-target="#about" type="button">
+                        <i class="fas fa-info-circle me-1"></i>À propos
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Contenu des onglets -->
+    <div class="tab-content" id="sellerTabsContent">
+        <!-- Produits -->
+        <div class="tab-pane fade show active" id="products" role="tabpanel">
+            <div class="row">
+                {% for product in products %}
+                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                    <div class="card h-100 product-card shadow-sm">
+                        {% if product.main_image %}
+                            <img src="{{ product.main_image.image.url }}" alt="{{ product.name }}" 
+                                 class="card-img-top" style="height: 200px; object-fit: cover;">
+                        {% else %}
+                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                                <i class="fas fa-image fa-3x text-muted"></i>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="card-body d-flex flex-column">
+                            <h6 class="card-title">{{ product.name|truncatechars:50 }}</h6>
+                            <p class="card-text text-muted small">{{ product.short_description|truncatewords:10 }}</p>
+                            
+                            <div class="mt-auto">
+                                <div class="price mb-2">
+                                    {% if product.discount_price %}
+                                        <span class="text-danger fw-bold">{{ product.discount_price }}€</span>
+                                        <span class="text-muted text-decoration-line-through ms-1">{{ product.price }}€</span>
+                                        <span class="badge bg-danger ms-1">-{{ product.discount_percentage }}%</span>
+                                    {% else %}
+                                        <span class="text-primary fw-bold">{{ product.price }}€</span>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if product.slug %}
+                                    <a href="{{ product.get_absolute_url }}" class="btn btn-outline-primary btn-sm w-100">
+                                        <i class="fas fa-eye me-1"></i>Voir le produit
+                                    </a>
+                                {% else %}
+                                    <button class="btn btn-outline-primary btn-sm w-100" disabled>
+                                        <i class="fas fa-eye me-1"></i>Produit non disponible
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="text-center py-5">
+                        <i class="fas fa-boxes fa-3x text-muted mb-3"></i>
+                        <h5>Aucun produit disponible</h5>
+                        <p class="text-muted">Ce vendeur n'a pas encore de produits en ligne.</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if products.paginator.num_pages > 1 %}
+            <nav aria-label="Pagination produits">
+                <ul class="pagination justify-content-center">
+                    {% if products.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ products.previous_page_number }}">Précédent</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for num in products.paginator.page_range %}
+                        {% if products.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if products.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ products.next_page_number }}">Suivant</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+        
+        <!-- Blog -->
+        {% if blog_posts_count > 0 %}
+        <div class="tab-pane fade" id="blog" role="tabpanel">
+            <div class="row">
+                {% for post in blog_posts %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        {% if post.featured_image %}
+                            <img src="{{ post.featured_image.url }}" alt="{{ post.title }}" 
+                                 class="card-img-top" style="height: 200px; object-fit: cover;">
+                        {% endif %}
+                        
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">{{ post.title }}</h5>
+                            <p class="card-text">{{ post.excerpt }}</p>
+                            
+                            <div class="mt-auto">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">{{ post.published_at|date:"d/m/Y" }}</small>
+                                    {% if post.category %}
+                                        <span class="badge bg-secondary">{{ post.category.name }}</span>
+                                    {% endif %}
+                                </div>
+                                <a href="{{ post.get_absolute_url }}" class="btn btn-outline-primary btn-sm mt-2">
+                                    Lire la suite
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Avis -->
+        {% if reviews_count > 0 %}
+        <div class="tab-pane fade" id="reviews" role="tabpanel">
+            {% for review in reviews %}
+            <div class="card mb-3 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        {% if review.user.avatar %}
+                            <img src="{{ review.user.avatar.url }}" alt="{{ review.user.username }}" 
+                                 class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;">
+                        {% else %}
+                            <i class="fas fa-user-circle fa-2x text-muted me-2"></i>
+                        {% endif %}
+                        <div>
+                            <strong>{{ review.user.get_full_name|default:review.user.username }}</strong>
+                            {% if review.is_verified %}
+                                <span class="badge bg-success ms-1">Achat vérifié</span>
+                            {% endif %}
+                            <br>
+                            <div class="rating">
+                                {% for i in "12345" %}
+                                    {% if review.rating >= forloop.counter %}
+                                        <i class="fas fa-star text-warning"></i>
+                                    {% else %}
+                                        <i class="far fa-star text-muted"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <small class="text-muted">{{ review.created_at|date:"d/m/Y" }}</small>
+                        </div>
+                    </div>
+                    
+                    {% if review.title %}
+                        <h6>{{ review.title }}</h6>
+                    {% endif %}
+                    <p class="mb-2">{{ review.comment }}</p>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="fas fa-box me-1"></i>
+                            <a href="{{ review.product.get_absolute_url }}" class="text-decoration-none">
+                                {{ review.product.name }}
+                            </a>
+                        </small>
+                        <small class="text-muted">{{ review.helpful_count }} personne(s) ont trouvé cet avis utile</small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            
+            {% if reviews_count > 5 %}
+            <div class="text-center mt-3">
+                <a href="{% url 'reviews:seller_reviews' seller.username %}" class="btn btn-outline-primary">
+                    Voir tous les avis
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- À propos -->
+        <div class="tab-pane fade" id="about" role="tabpanel">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light">
+                            <h5><i class="fas fa-info-circle me-2"></i>À propos de {{ seller.seller_profile.company_name }}</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if seller.seller_profile.company_description %}
+                                <p>{{ seller.seller_profile.company_description|linebreaks }}</p>
+                            {% else %}
+                                <p class="text-muted">Aucune description disponible.</p>
+                            {% endif %}
+                            
+                            {% if seller.seller_profile.website %}
+                            <div class="mt-3">
+                                <strong>Site web :</strong>
+                                <a href="{{ seller.seller_profile.website }}" target="_blank" class="text-decoration-none">
+                                    {{ seller.seller_profile.website }}
+                                    <i class="fas fa-external-link-alt ms-1"></i>
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light">
+                            <h6><i class="fas fa-chart-bar me-2"></i>Statistiques</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span>Membre depuis :</span>
+                                    <strong>{{ seller.date_joined|date:"M Y" }}</strong>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span>Produits :</span>
+                                    <strong>{{ products_count }}</strong>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span>Commandes :</span>
+                                    <strong>{{ orders_count }}</strong>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span>Note moyenne :</span>
+                                    <strong>{{ rating_avg }}/5</strong>
+                                </div>
+                            </div>
+                            {% if seller.seller_profile.is_verified %}
+                            <div class="text-center mt-3">
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle me-1"></i>Vendeur vérifié
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function startConversation(sellerId) {
+    // Fonction pour démarrer une conversation avec le vendeur
+    fetch('/messaging/start/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            'recipient_id': sellerId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = `/messaging/conversation/${data.conversation_id}/`;
+        } else {
+            alert('Erreur lors de la création de la conversation');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Une erreur est survenue');
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% trans "Proposer un prix de livraison" %} - E-Commerce{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-4">
+    <h2><i class="fas fa-money-bill-wave me-2"></i>{% trans "Proposer un prix pour la livraison #" %}{{ delivery.tracking_number }}</h2>
+    <p class="text-muted">{% trans "Entrez le prix de livraison que vous proposez aux livreurs et indiquez qui paiera la livraison." %}</p>
+
+    {% if messages %}
+        <div class="alert alert-dismissible fade show" role="alert">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="fas fa-edit me-2"></i>{% trans "Formulaire de proposition" %}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="propose-delivery-form">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <div class="mb-3">
+                            <label for="paid_by" class="form-label">{% trans "Payé par" %}</label>
+                            <select class="form-select" id="paid_by" name="paid_by" required>
+                                <option value="buyer" {% if delivery.paid_by == 'buyer' %}selected{% endif %}>{% trans "Acheteur" %}</option>
+                                <option value="seller" {% if delivery.paid_by == 'seller' %}selected{% endif %}>{% trans "Vendeur" %}</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-save me-2"></i>{% trans "Proposer le prix" %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5><i class="fas fa-info-circle me-2"></i>{% trans "Détails de la livraison" %}</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>{% trans "Commande" %}:</strong> #{{ delivery.order.id|slice:":8" }}</p>
+                    <p><strong>{% trans "Adresse de livraison" %}:</strong> 
+                        {% if delivery.location_point %}
+                            {{ delivery.location_point.full_address|default:"Non défini" }}
+                        {% else %}
+                            {{ delivery.order.full_shipping_address|default:"Non défini" }}
+                        {% endif %}
+                    </p>
+                    <p><strong>{% trans "Adresse du vendeur" %}:</strong> 
+                        {{ delivery.order.items.first.product.seller.full_address|default:"Non défini" }}
+                    </p>
+                    <p><strong>{% trans "Prix estimé" %}:</strong> {{ estimated_cost|default:delivery.delivery_cost }}€</p>
+                    <p><strong>{% trans "Payé par" %}:</strong> {{ delivery.get_paid_by_display|default:"Acheteur" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{% url 'deliveries:detail' pk=delivery.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>{% trans "Retour aux détails de la livraison" %}
+        </a>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.getElementById('propose-delivery-form').addEventListener('submit', function(event) {
+    const proposedCost = document.querySelector('input[name="proposed_cost"]');
+    if (proposedCost && parseFloat(proposedCost.value) <= 0) {
+        event.preventDefault();
+        alert('{% trans "Le prix proposé doit être supérieur à 0." %}');
+    }
+});
+</script>
+{% endblock %}

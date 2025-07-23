@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes demandes de retour - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2><i class="fas fa-undo me-2"></i>Mes demandes de retour</h2>
+    
+    {% if return_requests %}
+    <div class="row">
+        {% for return_request in return_requests %}
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <strong>Retour #{{ return_request.id }}</strong>
+                            <br>
+                            <small class="text-muted">Commande #{{ return_request.order.id|slice:":8" }}</small>
+                        </div>
+                        <div class="col-md-2">
+                            <span class="badge bg-{% if return_request.status == 'completed' %}success{% elif return_request.status == 'rejected' or return_request.status == 'cancelled' %}danger{% elif return_request.status == 'approved' %}info{% else %}warning{% endif %}">
+                                {{ return_request.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="col-md-2">
+                            <strong>{{ return_request.get_reason_display }}</strong>
+                        </div>
+                        <div class="col-md-2">
+                            {% if return_request.refund_amount > 0 %}
+                                <strong>{{ return_request.refund_amount }}€</strong>
+                                <br><small class="text-muted">Remboursement</small>
+                            {% else %}
+                                <small class="text-muted">En attente</small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <a href="{% url 'returns:detail' return_request.pk %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye"></i> Détails
+                            </a>
+                            {% if return_request.can_be_cancelled %}
+                            <a href="{% url 'returns:cancel' return_request.pk %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('Annuler cette demande de retour ?')">
+                                <i class="fas fa-times"></i> Annuler
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2"><strong>Description:</strong> {{ return_request.description|truncatewords:20 }}</p>
+                    <small class="text-muted">Créée le {{ return_request.created_at|date:"d/m/Y à H:i" }}</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    {% if is_paginated %}
+    <nav aria-label="Pagination">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Précédent</a>
+                </li>
+            {% endif %}
+            
+            <li class="page-item active">
+                <span class="page-link">{{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>
+            </li>
+            
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Suivant</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+    
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-undo fa-5x text-muted mb-4"></i>
+        <h3>Aucune demande de retour</h3>
+        <p class="text-muted mb-4">Vous n'avez pas encore fait de demande de retour.</p>
+        <a href="{% url 'orders:list' %}" class="btn btn-primary">
+            <i class="fas fa-shopping-bag me-2"></i>Voir mes commandes
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

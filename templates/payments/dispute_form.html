@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Signaler un litige - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h2 class="text-gradient mb-4"><i class="fas fa-exclamation-triangle me-2"></i>Signaler un litige</h2>
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Détails du litige</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="payment_id" class="form-label">Paiement concerné</label>
+                            <input type="text" class="form-control" id="payment_id" value="{{ payment.id }}" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Raison du litige</label>
+                            <textarea class="form-control" id="reason" name="reason" rows="5" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="evidence" class="form-label">Preuves (facultatif)</label>
+                            <input type="file" class="form-control" id="evidence" name="evidence" accept="image/*,application/pdf">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>Soumettre le litige
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

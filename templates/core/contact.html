@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Contact - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h2 class="text-center mb-5"><i class="fas fa-envelope me-2"></i>Contactez-nous</h2>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5><i class="fas fa-paper-plane me-2"></i>Envoyez-nous un message</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label class="form-label">Nom complet *</label>
+                                    <input type="text" name="name" class="form-control" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Email *</label>
+                                    <input type="email" name="email" class="form-control" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Sujet *</label>
+                                    <select name="subject" class="form-select" required>
+                                        <option value="">Choisir un sujet</option>
+                                        <option value="Question générale">Question générale</option>
+                                        <option value="Support technique">Support technique</option>
+                                        <option value="Problème de commande">Problème de commande</option>
+                                        <option value="Devenir vendeur">Devenir vendeur</option>
+                                        <option value="Partenariat">Partenariat</option>
+                                        <option value="Autre">Autre</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Message *</label>
+                                    <textarea name="message" class="form-control" rows="5" required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-paper-plane me-2"></i>Envoyer le message
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5><i class="fas fa-info-circle me-2"></i>Nos coordonnées</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="contact-info">
+                                <div class="mb-4">
+                                    <h6><i class="fas fa-envelope text-primary me-2"></i>Email</h6>
+                                    <p class="mb-0">
+                                        <a href="mailto:mohamedsaiddiallo88@gmail.com" class="text-decoration-none">
+                                            mohamedsaiddiallo88@gmail.com
+                                        </a>
+                                    </p>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <h6><i class="fas fa-phone text-primary me-2"></i>Téléphones</h6>
+                                    <p class="mb-1">
+                                        <a href="tel:+330628530945" class="text-decoration-none">
+                                            +33 06 28 53 09 45
+                                        </a>
+                                        <small class="text-muted">(France)</small>
+                                    </p>
+                                    <p class="mb-0">
+                                        <a href="tel:+224610267054" class="text-decoration-none">
+                                            +224 610 267 054
+                                        </a>
+                                        <small class="text-muted">(Guinée)</small>
+                                    </p>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <h6><i class="fas fa-clock text-primary me-2"></i>Horaires</h6>
+                                    <p class="mb-1">Lundi - Vendredi : 8h00 - 18h00</p>
+                                    <p class="mb-1">Samedi : 9h00 - 16h00</p>
+                                    <p class="mb-0">Dimanche : Fermé</p>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <h6><i class="fas fa-map-marker-alt text-primary me-2"></i>Localisation</h6>
+                                    <p class="mb-0">Conakry, Guinée</p>
+                                </div>
+                                
+                                <div>
+                                    <h6><i class="fas fa-share-alt text-primary me-2"></i>Réseaux sociaux</h6>
+                                    <div class="social-links">
+                                        <a href="#" class="btn btn-outline-primary btn-sm me-2">
+                                            <i class="fab fa-facebook"></i>
+                                        </a>
+                                        <a href="#" class="btn btn-outline-info btn-sm me-2">
+                                            <i class="fab fa-twitter"></i>
+                                        </a>
+                                        <a href="#" class="btn btn-outline-danger btn-sm me-2">
+                                            <i class="fab fa-instagram"></i>
+                                        </a>
+                                        <a href="#" class="btn btn-outline-primary btn-sm">
+                                            <i class="fab fa-linkedin"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-5">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-question-circle me-2"></i>Questions fréquentes</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-3">Avant de nous contacter, consultez notre <a href="{% url 'core:faq' %}" class="text-decoration-none">FAQ</a> qui répond aux questions les plus courantes.</p>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Support client</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-check text-success me-2"></i>Suivi de commande</li>
+                                        <li><i class="fas fa-check text-success me-2"></i>Retours et remboursements</li>
+                                        <li><i class="fas fa-check text-success me-2"></i>Problèmes de paiement</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Support vendeur</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-check text-success me-2"></i>Gestion des produits</li>
+                                        <li><i class="fas fa-check text-success me-2"></i>Validation du compte</li>
+                                        <li><i class="fas fa-check text-success me-2"></i>Statistiques de vente</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

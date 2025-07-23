@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Conversation{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Conversation avec {{ recipient.get_full_name|default:recipient.username }}</h2>
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            {% for message in conversation.messages.all %}
+            <div class="mb-3 {% if message.sender == user %}text-end{% endif %}">
+                <div class="d-flex {% if message.sender == user %}justify-content-end{% else %}justify-content-start{% endif %}">
+                    <div class="p-3 rounded {% if message.sender == user %}bg-primary text-white{% else %}bg-light{% endif %}">
+                        <strong>{{ message.sender.get_full_name|default:message.sender.username }}</strong>
+                        <small class="text-muted d-block">{{ message.created_at|date:"d/m/Y H:i" }}</small>
+                        {% if message.content %}
+                            <p class="mb-2">{{ message.content }}</p>
+                        {% endif %}
+                        {% if message.attachment %}
+                            <a href="{{ message.attachment.url }}" target="_blank" class="text-decoration-none">
+                                <i class="fas fa-file me-1"></i>Pièce jointe
+                            </a>
+                        {% endif %}
+                        {% if message.is_read and message.sender != user %}
+                            <small class="text-muted d-block">Lu le {{ message.read_by.first.read_at|date:"d/m/Y H:i" }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-muted text-center">Aucun message dans cette conversation.</p>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <form method="POST" action="{% url 'messaging:send_message' conversation.id %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% if messages %}
+        <div class="mb-3">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="mb-3">
+            <textarea class="form-control" name="content" rows="4" placeholder="Écrire un message..."></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="attachment" class="form-label">Ajouter une pièce jointe</label>
+            <input type="file" class="form-control" name="attachment" id="attachment">
+        </div>
+        <button type="submit" class="btn btn-primary">Envoyer</button>
+    </form>
+</div>
+{% endblock %}

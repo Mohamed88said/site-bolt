@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load i18n %}
+{% load static %}
+{% load product_tags %}
+
+{% block title %}{% trans "Produits" %} - E-Commerce{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-filter"></i> {% trans "Filtres" %}</h5>
+            </div>
+            <div class="card-body">
+                <form method="get" id="filter-form">
+                    {{ search_form|crispy }}
+                    <button type="submit" class="btn btn-primary w-100 mt-3">
+                        <i class="fas fa-search"></i> {% trans "Filtrer" %}
+                    </button>
+                    <button type="reset" class="btn btn-outline-secondary w-100 mt-2" onclick="resetFilters()">
+                        <i class="fas fa-times"></i> {% trans "Réinitialiser" %}
+                    </button>
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'geolocation:location_picker' %}?next={% url 'products:list' %}" class="btn btn-outline-success btn-sm w-100 mt-2">
+                        <i class="fas fa-plus-circle"></i> {% trans "Ajouter une nouvelle adresse" %}
+                    </a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-9">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>{% trans "Produits" %}</h2>
+            <span class="text-muted">{{ products.paginator.count }} {% trans "produit" %}{{ products.paginator.count|pluralize }}</span>
+        </div>
+        
+        {% if products %}
+        <div class="row">
+            {% for product in products %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 product-card">
+                    {% if product.main_image %}
+                        <img src="{{ product.main_image.image.url }}" alt="{{ product.name }}" class="card-img-top" style="height: 200px; object-fit: cover;">
+                    {% else %}
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                            <i class="fas fa-image fa-3x text-muted"></i>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        <p class="card-text text-muted">{{ product.short_description|truncatewords:15 }}</p>
+                        
+                        <div class="mt-auto">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="price">
+                                    {% if product.discount_price %}
+                                        <span class="text-danger fw-bold">{{ product.discount_price }} GNF</span>
+                                        <span class="text-muted text-decoration-line-through">{{ product.price }} GNF</span>
+                                        <span class="badge bg-danger">-{{ product.discount_percentage }}%</span>
+                                    {% else %}
+                                        <span class="text-primary fw-bold">{{ product.price }} GNF</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="rating">
+                                    {% for i in "12345" %}
+                                        {% if product.rating >= i|add:0 %}
+                                            <i class="fas fa-star text-warning"></i>
+                                        {% else %}
+                                            <i class="far fa-star text-muted"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <small class="text-muted">{{ product.views }} {% trans "vues" %}</small>
+                            </div>
+                            
+                            <div class="mb-2">
+                                {% if user_location %}
+                                    {% if product|is_available_in_zone:user_location %}
+                                        <span class="badge bg-success"><i class="fas fa-check"></i> {% trans "Disponible dans votre zone" %}</span>
+                                    {% else %}
+                                        <span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> {% trans "Non disponible dans votre zone" %}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-info"><i class="fas fa-info-circle"></i> {% trans "Disponibilité à confirmer" %}</span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'products:detail' product.slug %}" class="btn btn-primary btn-sm flex-fill">
+                                    <i class="fas fa-eye"></i> {% trans "Voir" %}
+                                </a>
+                                {% if user.is_authenticated %}
+                                    <button class="btn btn-outline-danger btn-sm" onclick="toggleFavorite({{ product.id }}, this)">
+                                        <i class="far fa-heart"></i>
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <nav aria-label="Pagination">
+            <ul class="pagination justify-content-center">
+                {% if products.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{% trans "Premier" %}</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ products.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{% trans "Précédent" %}</a>
+                    </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link">{{ products.number }} {% trans "sur" %} {{ products.paginator.num_pages }}</span>
+                </li>
+                
+                {% if products.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ products.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{% trans "Suivant" %}</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ products.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{% trans "Dernier" %}</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% else %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h4>{% trans "Aucun produit trouvé" %}</h4>
+                <p class="text-muted">{% trans "Essayez de modifier vos critères de recherche." %}</p>
+                <a href="{% url 'products:list' %}" class="btn btn-primary">{% trans "Réinitialiser les filtres" %}</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function toggleFavorite(productId, buttonElement) {
+    const icon = buttonElement.querySelector('i');
+    fetch(`/favorites/toggle/${productId}/?product_id=${productId}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.is_favorite) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                buttonElement.classList.remove('btn-outline-danger');
+                buttonElement.classList.add('btn-danger');
+            } else {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                buttonElement.classList.remove('btn-danger');
+                buttonElement.classList.add('btn-outline-danger');
+            }
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function resetFilters() {
+    window.location.href = "{% url 'products:list' %}";
+}
+</script>
+{% endblock %}
