@@ -69,6 +69,8 @@ class Product(models.Model):
     stock_alert_threshold = models.IntegerField(default=5, verbose_name=_('Seuil d\'alerte stock'))
     seller_pays_delivery = models.BooleanField(default=False, verbose_name=_('Le vendeur prend en charge la livraison'))
     delivery_included_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name=_('Prix avec livraison incluse'))
+    seller_pays_delivery = models.BooleanField(default=False, verbose_name=_('Le vendeur prend en charge la livraison'))
+    delivery_included_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name=_('Prix avec livraison incluse'))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

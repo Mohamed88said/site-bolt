@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+
+{% block title %}Recommandations IA - {{ site_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.ai-header {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 40px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+}
+
+.recommendation-card {
+    border: 2px solid #e9ecef;
+    border-radius: 15px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.recommendation-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+    transform: translateY(-5px);
+}
+
+.confidence-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(102, 126, 234, 0.9);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.recommendation-type {
+    background: #f8f9fa;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+.ai-reasoning {
+    background: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    padding: 10px 15px;
+    margin-top: 10px;
+    border-radius: 0 5px 5px 0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- En-tête IA -->
+    <div class="ai-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-3">
+                    <i class="fas fa-brain me-3"></i>Recommandations IA
+                </h1>
+                <p class="lead mb-0">Découvrez des produits sélectionnés spécialement pour vous par notre intelligence artificielle</p>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="d-flex justify-content-center align-items-center">
+                    <div class="me-3">
+                        <h3 class="mb-0">{{ recommendations.count }}</h3>
+                        <small>Recommandations</small>
+                    </div>
+                    <div>
+                        <h3 class="mb-0">{{ accuracy_rate }}%</h3>
+                        <small>Précision</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filtres -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-outline-primary active" data-filter="all">
+                            Toutes
+                        </button>
+                        <button class="btn btn-outline-primary" data-filter="collaborative">
+                            Filtrage collaboratif
+                        </button>
+                        <button class="btn btn-outline-primary" data-filter="content">
+                            Basé sur le contenu
+                        </button>
+                        <button class="btn btn-outline-primary" data-filter="trending">
+                            Tendances
+                        </button>
+                        <button class="btn btn-outline-primary" data-filter="location">
+                            Localisation
+                        </button>
+                        <button class="btn btn-outline-primary" data-filter="price_drop">
+                            Baisse de prix
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recommandations -->
+    <div class="row">
+        {% for recommendation in recommendations %}
+        <div class="col-lg-4 col-md-6 mb-4 recommendation-item" data-type="{{ recommendation.recommendation_type }}">
+            <div class="card recommendation-card h-100">
+                <div class="confidence-badge">
+                    {{ recommendation.confidence_score|floatformat:0 }}%
+                </div>
+                
+                {% if recommendation.product.main_image %}
+                    <img src="{{ recommendation.product.main_image.image.url }}" 
+                         class="card-img-top" style="height: 200px; object-fit: cover;">
+                {% endif %}
+                
+                <div class="card-body d-flex flex-column">
+                    <div class="recommendation-type">
+                        <i class="fas fa-robot me-1"></i>
+                        {{ recommendation.get_recommendation_type_display }}
+                    </div>
+                    
+                    <h5 class="card-title">{{ recommendation.product.name }}</h5>
+                    <p class="card-text text-muted">{{ recommendation.product.short_description|truncatewords:15 }}</p>
+                    
+                    {% if recommendation.reasoning %}
+                    <div class="ai-reasoning">
+                        <small><strong>Pourquoi cette recommandation ?</strong></small>
+                        <br><small>{{ recommendation.reasoning|truncatewords:20 }}</small>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-auto">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="price">
+                                {% if recommendation.product.discount_price %}
+                                    <span class="h5 text-danger">{{ recommendation.product.discount_price|floatformat:0 }} GNF</span>
+                                    <br><span class="text-muted text-decoration-line-through">{{ recommendation.product.price|floatformat:0 }} GNF</span>
+                                {% else %}
+                                    <span class="h5 text-primary">{{ recommendation.product.price|floatformat:0 }} GNF</span>
+                                {% endif %}
+                            </div>
+                            <div class="rating">
+                                {% for i in "12345" %}
+                                    {% if recommendation.product.rating >= i|add:0 %}
+                                        <i class="fas fa-star text-warning"></i>
+                                    {% else %}
+                                        <i class="far fa-star text-muted"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <a href="{{ recommendation.product.get_absolute_url }}" 
+                               class="btn btn-primary flex-fill"
+                               onclick="trackRecommendationClick({{ recommendation.id }})">
+                                <i class="fas fa-eye me-1"></i>Voir
+                            </a>
+                            <button class="btn btn-outline-success" onclick="addToCart({{ recommendation.product.id }})">
+                                <i class="fas fa-shopping-cart"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-robot fa-5x text-muted mb-4"></i>
+                <h3>Aucune recommandation</h3>
+                <p class="text-muted">L'IA apprend de vos préférences. Continuez à naviguer pour obtenir des recommandations personnalisées !</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+// Filtrage des recommandations
+document.querySelectorAll('[data-filter]').forEach(button => {
+    button.addEventListener('click', function() {
+        const filter = this.dataset.filter;
+        
+        // Mettre à jour les boutons
+        document.querySelectorAll('[data-filter]').forEach(btn => btn.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Filtrer les éléments
+        document.querySelectorAll('.recommendation-item').forEach(item => {
+            if (filter === 'all' || item.dataset.type === filter) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+});
+
+function trackRecommendationClick(recommendationId) {
+    fetch(`/ai/recommendation/${recommendationId}/click/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    });
+}
+
+function addToCart(productId) {
+    fetch(`/cart/add/${productId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new FormData()
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Produit ajouté au panier !');
+        } else {
+            alert('Erreur lors de l\'ajout au panier');
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -14,6 +14,7 @@ class ProductForm(forms.ModelForm):
             'price': forms.NumberInput(attrs={'step': '0.01'}),
             'discount_price': forms.NumberInput(attrs={'step': '0.01'}),
             'delivery_included_price': forms.NumberInput(attrs={'step': '0.01'}),
+            'delivery_included_price': forms.NumberInput(attrs={'step': '0.01'}),
             'weight': forms.NumberInput(attrs={'step': '0.01'}),
         }
     

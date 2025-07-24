@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Vente Flash - {{ flash_sale.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.flash-sale-header {
+    background: linear-gradient(45deg, #ff6b35, #f7931e, #ff6b35);
+    background-size: 400% 400%;
+    animation: gradient 3s ease infinite;
+    color: white;
+    padding: 30px 0;
+    text-align: center;
+}
+
+@keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.countdown-timer {
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.countdown-item {
+    text-align: center;
+    color: white;
+}
+
+.countdown-number {
+    font-size: 2rem;
+    font-weight: bold;
+    display: block;
+}
+
+.flash-product-card {
+    border: 3px solid #ff6b35;
+    border-radius: 15px;
+    overflow: hidden;
+    position: relative;
+    transition: transform 0.3s ease;
+}
+
+.flash-product-card:hover {
+    transform: scale(1.02);
+}
+
+.flash-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: #ff6b35;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-weight: bold;
+    z-index: 2;
+}
+
+.stock-progress {
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.stock-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #ffc107, #dc3545);
+    transition: width 0.3s ease;
+}
+
+.flash-price {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #ff6b35;
+}
+
+.original-price {
+    text-decoration: line-through;
+    color: #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- En-tête vente flash -->
+<section class="flash-sale-header">
+    <div class="container">
+        <h1 class="display-4 fw-bold mb-3">
+            <i class="fas fa-bolt me-3"></i>{{ flash_sale.name }}
+        </h1>
+        <p class="lead">Offres limitées - Dépêchez-vous !</p>
+        
+        <!-- Compte à rebours -->
+        <div class="countdown-timer">
+            <div class="row" id="countdown">
+                <div class="col-3 countdown-item">
+                    <span class="countdown-number" id="days">00</span>
+                    <small>Jours</small>
+                </div>
+                <div class="col-3 countdown-item">
+                    <span class="countdown-number" id="hours">00</span>
+                    <small>Heures</small>
+                </div>
+                <div class="col-3 countdown-item">
+                    <span class="countdown-number" id="minutes">00</span>
+                    <small>Minutes</small>
+                </div>
+                <div class="col-3 countdown-item">
+                    <span class="countdown-number" id="seconds">00</span>
+                    <small>Secondes</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="container py-5">
+    <!-- Produits en vente flash -->
+    <div class="row">
+        {% for flash_product in flash_sale.flash_products.all %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card flash-product-card h-100">
+                <div class="flash-badge">
+                    -{{ flash_product.discount_percentage|floatformat:0 }}%
+                </div>
+                
+                {% if flash_product.product.main_image %}
+                    <img src="{{ flash_product.product.main_image.image.url }}" 
+                         class="card-img-top" style="height: 250px; object-fit: cover;">
+                {% endif %}
+                
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">{{ flash_product.product.name }}</h5>
+                    <p class="card-text text-muted">{{ flash_product.product.short_description|truncatewords:15 }}</p>
+                    
+                    <!-- Prix -->
+                    <div class="mb-3">
+                        <div class="flash-price">{{ flash_product.flash_price_gnf|floatformat:0|intcomma }} GNF</div>
+                        <div class="original-price">{{ flash_product.original_price_gnf|floatformat:0|intcomma }} GNF</div>
+                    </div>
+                    
+                    <!-- Stock restant -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted">Stock restant</small>
+                            <small><strong>{{ flash_product.available_quantity|sub:flash_product.sold_quantity }}</strong></small>
+                        </div>
+                        <div class="stock-progress">
+                            <div class="stock-progress-bar" style="width: {{ flash_product.stock_percentage }}%"></div>
+                        </div>
+                        <small class="text-muted">{{ flash_product.sold_quantity }}/{{ flash_product.available_quantity }} vendus</small>
+                    </div>
+                    
+                    <div class="mt-auto">
+                        {% if not flash_product.is_sold_out %}
+                            {% if user.is_authenticated %}
+                                <button class="btn btn-primary w-100" onclick="buyFlashProduct({{ flash_product.id }})">
+                                    <i class="fas fa-bolt me-2"></i>Acheter maintenant
+                                </button>
+                            {% else %}
+                                <a href="{% url 'accounts:login' %}" class="btn btn-primary w-100">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Se connecter pour acheter
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            <button class="btn btn-danger w-100" disabled>
+                                <i class="fas fa-times me-2"></i>Épuisé
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Conditions de la vente flash -->
+    <div class="row mt-5">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle me-2"></i>Conditions de la vente flash</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success me-2"></i>Offre limitée dans le temps</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Maximum {{ flash_sale.max_quantity_per_user }} article(s) par personne</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Stocks limités</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Livraison standard applicable</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Paiement immédiat requis</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Compte à rebours
+function updateCountdown() {
+    const endTime = new Date('{{ flash_sale.end_time|date:"c" }}').getTime();
+    const now = new Date().getTime();
+    const timeLeft = endTime - now;
+    
+    if (timeLeft > 0) {
+        const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+        
+        document.getElementById('days').textContent = days.toString().padStart(2, '0');
+        document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
+        document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
+        document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+    } else {
+        document.getElementById('countdown').innerHTML = '<div class="col-12 text-center"><h3>Vente flash terminée !</h3></div>';
+    }
+}
+
+// Mettre à jour toutes les secondes
+setInterval(updateCountdown, 1000);
+updateCountdown();
+
+function buyFlashProduct(flashProductId) {
+    if (confirm('Voulez-vous acheter ce produit en vente flash ?')) {
+        fetch(`/marketplace/flash-sale/buy/${flashProductId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Produit ajouté au panier !');
+                window.location.href = '/cart/';
+            } else {
+                alert('Erreur: ' + data.error);
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

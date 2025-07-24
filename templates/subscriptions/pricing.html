@@ -1,0 +1,405 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Tarifs et Abonnements - {{ site_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.pricing-hero {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+    padding: 60px 0;
+    text-align: center;
+}
+
+.pricing-card {
+    border: 2px solid #e9ecef;
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 30px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.pricing-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.pricing-card.featured {
+    border-color: var(--primary-color);
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(255, 107, 53, 0.05));
+}
+
+.pricing-card.featured::before {
+    content: 'POPULAIRE';
+    position: absolute;
+    top: 20px;
+    right: -30px;
+    background: var(--primary-color);
+    color: white;
+    padding: 5px 40px;
+    transform: rotate(45deg);
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.price-amount {
+    font-size: 3rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.price-currency {
+    font-size: 1.2rem;
+    color: #6c757d;
+}
+
+.feature-list {
+    list-style: none;
+    padding: 0;
+}
+
+.feature-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.feature-list li:last-child {
+    border-bottom: none;
+}
+
+.feature-included {
+    color: #28a745;
+}
+
+.feature-not-included {
+    color: #dc3545;
+}
+
+.feature-limited {
+    color: #ffc107;
+}
+
+.guinea-flag {
+    background: linear-gradient(to right, #ff0000, #ffff00, #00ff00);
+    height: 4px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="pricing-hero">
+    <div class="container">
+        <div class="guinea-flag mx-auto" style="width: 200px;"></div>
+        <h1 class="display-4 fw-bold mb-3">Tarifs adaptés à la Guinée</h1>
+        <p class="lead mb-4">Choisissez l'abonnement qui correspond à vos besoins</p>
+        <div class="d-flex justify-content-center gap-3">
+            <button class="btn btn-outline-light" id="monthly-btn" onclick="toggleBilling('monthly')">Mensuel</button>
+            <button class="btn btn-light" id="yearly-btn" onclick="toggleBilling('yearly')">
+                Annuel <span class="badge bg-success ms-1">-20%</span>
+            </button>
+        </div>
+    </div>
+</section>
+
+<div class="container py-5">
+    <div class="row">
+        <!-- Plan Gratuit -->
+        <div class="col-lg-3 col-md-6">
+            <div class="pricing-card text-center h-100">
+                <h3 class="mb-3">Gratuit</h3>
+                <div class="mb-4">
+                    <div class="price-amount">0</div>
+                    <div class="price-currency">GNF / mois</div>
+                </div>
+                
+                <ul class="feature-list text-start">
+                    <li><i class="fas fa-check feature-included me-2"></i>10 produits maximum</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>3 images par produit</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>3 catégories</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Analytics 30 jours</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>1 zone de livraison</li>
+                    <li><i class="fas fa-times feature-not-included me-2"></i>Recommandations IA</li>
+                    <li><i class="fas fa-times feature-not-included me-2"></i>Ventes flash</li>
+                    <li><i class="fas fa-times feature-not-included me-2"></i>Enchères</li>
+                    <li class="text-muted"><small>Commission: 5%</small></li>
+                </ul>
+                
+                <div class="mt-4">
+                    {% if user.subscription_type == 'free' %}
+                        <button class="btn btn-outline-primary w-100" disabled>Plan actuel</button>
+                    {% else %}
+                        <a href="{% url 'subscriptions:downgrade' %}" class="btn btn-outline-secondary w-100">Rétrograder</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Plan Premium -->
+        <div class="col-lg-3 col-md-6">
+            <div class="pricing-card featured text-center h-100">
+                <h3 class="mb-3">Premium</h3>
+                <div class="mb-4">
+                    <div class="price-amount monthly-price">50,000</div>
+                    <div class="price-amount yearly-price" style="display: none;">480,000</div>
+                    <div class="price-currency">GNF / <span class="billing-period">mois</span></div>
+                    <small class="text-success yearly-savings" style="display: none;">Économisez 120,000 GNF/an</small>
+                </div>
+                
+                <ul class="feature-list text-start">
+                    <li><i class="fas fa-check feature-included me-2"></i>100 produits</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>10 images par produit</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>10 catégories</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Analytics 1 an</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>5 zones de livraison</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Recommandations IA</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Ventes flash</li>
+                    <li><i class="fas fa-times feature-not-included me-2"></i>Enchères</li>
+                    <li class="text-success"><small>Commission: 3%</small></li>
+                </ul>
+                
+                <div class="mt-4">
+                    {% if user.subscription_type == 'premium' %}
+                        <button class="btn btn-primary w-100" disabled>Plan actuel</button>
+                    {% else %}
+                        <a href="{% url 'subscriptions:upgrade' plan='premium' %}" class="btn btn-primary w-100">Choisir Premium</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Plan Business -->
+        <div class="col-lg-3 col-md-6">
+            <div class="pricing-card text-center h-100">
+                <h3 class="mb-3">Business</h3>
+                <div class="mb-4">
+                    <div class="price-amount monthly-price">150,000</div>
+                    <div class="price-amount yearly-price" style="display: none;">1,440,000</div>
+                    <div class="price-currency">GNF / <span class="billing-period">mois</span></div>
+                    <small class="text-success yearly-savings" style="display: none;">Économisez 360,000 GNF/an</small>
+                </div>
+                
+                <ul class="feature-list text-start">
+                    <li><i class="fas fa-check feature-included me-2"></i>1,000 produits</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>20 images par produit</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Catégories illimitées</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Analytics 2 ans</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>20 zones de livraison</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Recommandations IA</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Ventes flash</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Enchères</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Groupes d'achat</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Support prioritaire</li>
+                    <li class="text-success"><small>Commission: 2%</small></li>
+                </ul>
+                
+                <div class="mt-4">
+                    {% if user.subscription_type == 'business' %}
+                        <button class="btn btn-primary w-100" disabled>Plan actuel</button>
+                    {% else %}
+                        <a href="{% url 'subscriptions:upgrade' plan='business' %}" class="btn btn-primary w-100">Choisir Business</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Plan Enterprise -->
+        <div class="col-lg-3 col-md-6">
+            <div class="pricing-card text-center h-100">
+                <h3 class="mb-3">Enterprise</h3>
+                <div class="mb-4">
+                    <div class="price-amount monthly-price">500,000</div>
+                    <div class="price-amount yearly-price" style="display: none;">4,800,000</div>
+                    <div class="price-currency">GNF / <span class="billing-period">mois</span></div>
+                    <small class="text-success yearly-savings" style="display: none;">Économisez 1,200,000 GNF/an</small>
+                </div>
+                
+                <ul class="feature-list text-start">
+                    <li><i class="fas fa-check feature-included me-2"></i>Produits illimités</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Images illimitées</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Catégories illimitées</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Analytics illimitées</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Zones illimitées</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Toutes les fonctionnalités IA</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>API complète</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Marque blanche</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Support dédié</li>
+                    <li><i class="fas fa-check feature-included me-2"></i>Entrepôts partagés</li>
+                    <li class="text-success"><small>Commission: 1%</small></li>
+                </ul>
+                
+                <div class="mt-4">
+                    {% if user.subscription_type == 'enterprise' %}
+                        <button class="btn btn-primary w-100" disabled>Plan actuel</button>
+                    {% else %}
+                        <a href="{% url 'subscriptions:upgrade' plan='enterprise' %}" class="btn btn-primary w-100">Choisir Enterprise</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Comparaison détaillée -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <h3 class="text-center mb-4">Comparaison détaillée</h3>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fonctionnalité</th>
+                            <th>Gratuit</th>
+                            <th>Premium</th>
+                            <th>Business</th>
+                            <th>Enterprise</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Produits maximum</strong></td>
+                            <td>10</td>
+                            <td>100</td>
+                            <td>1,000</td>
+                            <td>Illimité</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Images par produit</strong></td>
+                            <td>3</td>
+                            <td>10</td>
+                            <td>20</td>
+                            <td>Illimité</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Analytics</strong></td>
+                            <td>30 jours</td>
+                            <td>1 an</td>
+                            <td>2 ans</td>
+                            <td>Illimité</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Recommandations IA</strong></td>
+                            <td><i class="fas fa-times text-danger"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ventes flash</strong></td>
+                            <td><i class="fas fa-times text-danger"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Enchères</strong></td>
+                            <td><i class="fas fa-times text-danger"></i></td>
+                            <td><i class="fas fa-times text-danger"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                            <td><i class="fas fa-check text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Commission</strong></td>
+                            <td class="text-danger">5%</td>
+                            <td class="text-warning">3%</td>
+                            <td class="text-info">2%</td>
+                            <td class="text-success">1%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Support</strong></td>
+                            <td>Standard</td>
+                            <td>Prioritaire</td>
+                            <td>Prioritaire</td>
+                            <td>Dédié</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- FAQ Abonnements -->
+    <div class="row mt-5">
+        <div class="col-lg-8 mx-auto">
+            <h3 class="text-center mb-4">Questions fréquentes</h3>
+            <div class="accordion" id="pricingFAQ">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                            Comment fonctionne la facturation ?
+                        </button>
+                    </h2>
+                    <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#pricingFAQ">
+                        <div class="accordion-body">
+                            La facturation se fait en Francs Guinéens (GNF). Vous pouvez payer mensuellement ou annuellement avec 20% de réduction. Les paiements sont acceptés par Mobile Money, carte bancaire ou virement.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                            Puis-je changer d'abonnement ?
+                        </button>
+                    </h2>
+                    <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#pricingFAQ">
+                        <div class="accordion-body">
+                            Oui, vous pouvez upgrader ou downgrader à tout moment. Les changements prennent effet immédiatement et la facturation est ajustée au prorata.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                            Que se passe-t-il si je dépasse les limites ?
+                        </button>
+                    </h2>
+                    <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#pricingFAQ">
+                        <div class="accordion-body">
+                            Vous recevrez une notification pour upgrader votre plan. Vos produits existants restent actifs, mais vous ne pourrez pas en ajouter de nouveaux jusqu'à l'upgrade.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleBilling(period) {
+    const monthlyBtn = document.getElementById('monthly-btn');
+    const yearlyBtn = document.getElementById('yearly-btn');
+    const monthlyPrices = document.querySelectorAll('.monthly-price');
+    const yearlyPrices = document.querySelectorAll('.yearly-price');
+    const billingPeriods = document.querySelectorAll('.billing-period');
+    const yearlySavings = document.querySelectorAll('.yearly-savings');
+    
+    if (period === 'monthly') {
+        monthlyBtn.classList.remove('btn-outline-light');
+        monthlyBtn.classList.add('btn-light');
+        yearlyBtn.classList.remove('btn-light');
+        yearlyBtn.classList.add('btn-outline-light');
+        
+        monthlyPrices.forEach(el => el.style.display = 'block');
+        yearlyPrices.forEach(el => el.style.display = 'none');
+        billingPeriods.forEach(el => el.textContent = 'mois');
+        yearlySavings.forEach(el => el.style.display = 'none');
+    } else {
+        yearlyBtn.classList.remove('btn-outline-light');
+        yearlyBtn.classList.add('btn-light');
+        monthlyBtn.classList.remove('btn-light');
+        monthlyBtn.classList.add('btn-outline-light');
+        
+        monthlyPrices.forEach(el => el.style.display = 'none');
+        yearlyPrices.forEach(el => el.style.display = 'block');
+        billingPeriods.forEach(el => el.textContent = 'an');
+        yearlySavings.forEach(el => el.style.display = 'block');
+    }
+}
+</script>
+{% endblock %}

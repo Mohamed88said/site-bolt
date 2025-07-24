@@ -4,6 +4,12 @@ from django.utils.translation import gettext_lazy as _
 import uuid
 import random
 import string
+from decimal import Decimal
+from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
+from django.utils import timezone
+from datetime import timedelta
 
 class User(AbstractUser):
     USER_TYPE_CHOICES = [
@@ -15,12 +21,42 @@ class User(AbstractUser):
         ('support', _('Support')),
     ]
     
+    SUBSCRIPTION_CHOICES = [
+        ('free', _('Gratuit')),
+        ('premium', _('Premium')),
+        ('business', _('Business')),
+        ('enterprise', _('Enterprise')),
+    ]
+    
+    SUBSCRIPTION_CHOICES = [
+        ('free', _('Gratuit')),
+        ('premium', _('Premium')),
+        ('business', _('Business')),
+        ('enterprise', _('Enterprise')),
+    ]
+    
     user_type = models.CharField(
         max_length=20,
         choices=USER_TYPE_CHOICES,
         default='buyer',
         verbose_name=_('Type d\'utilisateur')
     )
+    subscription_type = models.CharField(
+        max_length=20,
+        choices=SUBSCRIPTION_CHOICES,
+        default='free',
+        verbose_name=_('Type d\'abonnement')
+    )
+    subscription_expires_at = models.DateTimeField(null=True, blank=True, verbose_name=_('Abonnement expire le'))
+    subscription_auto_renew = models.BooleanField(default=False, verbose_name=_('Renouvellement automatique'))
+    subscription_type = models.CharField(
+        max_length=20,
+        choices=SUBSCRIPTION_CHOICES,
+        default='free',
+        verbose_name=_('Type d\'abonnement')
+    )
+    subscription_expires_at = models.DateTimeField(null=True, blank=True, verbose_name=_('Abonnement expire le'))
+    subscription_auto_renew = models.BooleanField(default=False, verbose_name=_('Renouvellement automatique'))
     phone = models.CharField(max_length=20, blank=True, verbose_name=_('Téléphone'))
     address = models.TextField(blank=True, verbose_name=_('Adresse'))
     city = models.CharField(max_length=100, blank=True, verbose_name=_('Ville'))
@@ -29,6 +65,10 @@ class User(AbstractUser):
     avatar = models.ImageField(upload_to='avatars/', blank=True, verbose_name=_('Avatar'))
     birth_date = models.DateField(blank=True, null=True, verbose_name=_('Date de naissance'))
     is_verified = models.BooleanField(default=False, verbose_name=_('Vérifié'))
+    two_factor_enabled = models.BooleanField(default=False, verbose_name=_('2FA activé'))
+    two_factor_secret = models.CharField(max_length=32, blank=True)
+    two_factor_enabled = models.BooleanField(default=False, verbose_name=_('2FA activé'))
+    two_factor_secret = models.CharField(max_length=32, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Créé le'))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Mis à jour le'))
     
@@ -42,6 +82,126 @@ class User(AbstractUser):
     
     def __str__(self):
         return f"{self.username} ({self.get_user_type_display()})"
+    
+    @property
+    def is_premium(self):
+        return self.subscription_type in ['premium', 'business', 'enterprise']
+    
+    @property
+    def is_subscription_active(self):
+        if self.subscription_type == 'free':
+            return True
+        return self.subscription_expires_at and self.subscription_expires_at > timezone.now()
+    
+    def get_subscription_limits(self):
+        """Retourne les limites selon le type d'abonnement"""
+        limits = {
+            'free': {
+                'max_products': 10,
+                'max_images_per_product': 3,
+                'max_categories': 3,
+                'analytics_retention_days': 30,
+                'can_use_ai_recommendations': False,
+                'can_create_flash_sales': False,
+                'can_create_auctions': False,
+                'max_delivery_zones': 1,
+                'commission_rate': 0.05,  # 5%
+            },
+            'premium': {
+                'max_products': 100,
+                'max_images_per_product': 10,
+                'max_categories': 10,
+                'analytics_retention_days': 365,
+                'can_use_ai_recommendations': True,
+                'can_create_flash_sales': True,
+                'can_create_auctions': False,
+                'max_delivery_zones': 5,
+                'commission_rate': 0.03,  # 3%
+            },
+            'business': {
+                'max_products': 1000,
+                'max_images_per_product': 20,
+                'max_categories': -1,  # Illimité
+                'analytics_retention_days': 730,
+                'can_use_ai_recommendations': True,
+                'can_create_flash_sales': True,
+                'can_create_auctions': True,
+                'max_delivery_zones': 20,
+                'commission_rate': 0.02,  # 2%
+            },
+            'enterprise': {
+                'max_products': -1,  # Illimité
+                'max_images_per_product': -1,
+                'max_categories': -1,
+                'analytics_retention_days': -1,
+                'can_use_ai_recommendations': True,
+                'can_create_flash_sales': True,
+                'can_create_auctions': True,
+                'max_delivery_zones': -1,
+                'commission_rate': 0.01,  # 1%
+            }
+        }
+        return limits.get(self.subscription_type, limits['free'])
+    
+    @property
+    def is_premium(self):
+        return self.subscription_type in ['premium', 'business', 'enterprise']
+    
+    @property
+    def is_subscription_active(self):
+        if self.subscription_type == 'free':
+            return True
+        return self.subscription_expires_at and self.subscription_expires_at > timezone.now()
+    
+    def get_subscription_limits(self):
+        """Retourne les limites selon le type d'abonnement"""
+        limits = {
+            'free': {
+                'max_products': 10,
+                'max_images_per_product': 3,
+                'max_categories': 3,
+                'analytics_retention_days': 30,
+                'can_use_ai_recommendations': False,
+                'can_create_flash_sales': False,
+                'can_create_auctions': False,
+                'max_delivery_zones': 1,
+                'commission_rate': 0.05,  # 5%
+            },
+            'premium': {
+                'max_products': 100,
+                'max_images_per_product': 10,
+                'max_categories': 10,
+                'analytics_retention_days': 365,
+                'can_use_ai_recommendations': True,
+                'can_create_flash_sales': True,
+                'can_create_auctions': False,
+                'max_delivery_zones': 5,
+                'commission_rate': 0.03,  # 3%
+            },
+            'business': {
+                'max_products': 1000,
+                'max_images_per_product': 20,
+                'max_categories': -1,  # Illimité
+                'analytics_retention_days': 730,
+                'can_use_ai_recommendations': True,
+                'can_create_flash_sales': True,
+                'can_create_auctions': True,
+                'max_delivery_zones': 20,
+                'commission_rate': 0.02,  # 2%
+            },
+            'enterprise': {
+                'max_products': -1,  # Illimité
+                'max_images_per_product': -1,
+                'max_categories': -1,
+                'analytics_retention_days': -1,
+                'can_use_ai_recommendations': True,
+                'can_create_flash_sales': True,
+                'can_create_auctions': True,
+                'max_delivery_zones': -1,
+                'commission_rate': 0.01,  # 1%
+            }
+        }
+        return limits.get(self.subscription_type, limits['free'])
     
     @property
     def is_buyer(self):

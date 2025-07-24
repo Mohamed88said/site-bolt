@@ -158,6 +158,16 @@
                     <div class="d-flex justify-content-between">
                         <strong>Total à payer :</strong>
                         <strong class="text-primary">{{ total_amount|floatformat:0 }} GNF</strong>
+                        <div class="mt-2">
+                            <small class="text-info">
+                                <i class="fas fa-info-circle me-1"></i>
+                                {% if delivery_paid_by_buyer %}
+                                    Vous payez: {{ total_amount|floatformat:0 }} GNF (produits + livraison)
+                                {% else %}
+                                    Vous payez: {{ product_total|floatformat:0 }} GNF (livraison prise en charge par le vendeur)
+                                {% endif %}
+                            </small>
+                        </div>
                     </div>
                 </div>
                 

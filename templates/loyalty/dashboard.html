@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Programme de fidélité - {{ site_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.loyalty-hero {
+    background: linear-gradient(135deg, #d4af37, #ff6b35);
+    color: white;
+    padding: 40px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    position: relative;
+    overflow: hidden;
+}
+
+.loyalty-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 50%;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M30 30c0-11.046-8.954-20-20-20s-20 8.954-20 20 8.954 20 20 20 20-8.954 20-20z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.1;
+}
+
+.level-badge {
+    font-size: 1.5rem;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: bold;
+}
+
+.level-bronze { background: #cd7f32; }
+.level-silver { background: #c0c0c0; }
+.level-gold { background: #ffd700; }
+.level-platinum { background: #e5e4e2; }
+.level-diamond { background: #b9f2ff; }
+
+.points-card {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border-radius: 15px;
+    padding: 25px;
+    text-align: center;
+}
+
+.reward-card {
+    border: 2px solid #e9ecef;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+
+.reward-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+}
+
+.reward-card.available {
+    border-color: #28a745;
+    background: rgba(40, 167, 69, 0.05);
+}
+
+.progress-ring {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
+}
+
+.progress-ring-circle {
+    stroke: #d4af37;
+    stroke-width: 8;
+    fill: transparent;
+    stroke-dasharray: 283;
+    stroke-dashoffset: 283;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+    transition: stroke-dashoffset 0.5s ease-in-out;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- En-tête du programme de fidélité -->
+    <div class="loyalty-hero">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-3">
+                    <i class="fas fa-crown me-3"></i>Programme de fidélité
+                </h1>
+                <p class="lead mb-0">Gagnez des points à chaque achat et débloquez des récompenses exclusives</p>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="level-badge level-{{ user.loyalty.level }}">
+                    {{ user.loyalty.get_level_display }}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Statut actuel -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="points-card">
+                        <h3>{{ user.loyalty.points_balance|floatformat:0|intcomma }}</h3>
+                        <p class="mb-0">Points disponibles (GNF)</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center h-100">
+                        <div class="card-body">
+                            <h3 class="text-primary">{{ user.loyalty.total_earned|floatformat:0|intcomma }}</h3>
+                            <p class="mb-0">Total gagné (GNF)</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center h-100">
+                        <div class="card-body">
+                            <h3 class="text-info">{{ user.loyalty.referral_count }}</h3>
+                            <p class="mb-0">Parrainages</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Progression vers le niveau suivant -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-line me-2"></i>Progression vers le niveau suivant</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-3 text-center">
+                            <svg class="progress-ring">
+                                <circle class="progress-ring-circle" cx="60" cy="60" r="45" 
+                                        style="stroke-dashoffset: {{ progress_offset }}"></circle>
+                            </svg>
+                            <div class="mt-2">
+                                <strong>{{ progress_percentage }}%</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h6>Niveau {{ next_level_name }}</h6>
+                            <p class="text-muted">
+                                Il vous faut encore <strong>{{ points_to_next_level|floatformat:0|intcomma }} GNF</strong> 
+                                d'achats pour atteindre le niveau {{ next_level_name }}.
+                            </p>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-warning" style="width: {{ progress_percentage }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Code de parrainage -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-users me-2"></i>Parrainage</h5>
+                </div>
+                <div class="card-body">
+                    <p>Invitez vos amis et gagnez <strong>10,000 GNF</strong> de points pour chaque inscription !</p>
+                    <div class="input-group">
+                        <input type="text" class="form-control" value="{{ user.loyalty.referral_code }}" readonly>
+                        <button class="btn btn-outline-primary" onclick="copyReferralCode()">
+                            <i class="fas fa-copy"></i> Copier
+                        </button>
+                        <button class="btn btn-primary" onclick="shareReferralCode()">
+                            <i class="fas fa-share"></i> Partager
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Historique des transactions -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-history me-2"></i>Historique des points</h5>
+                </div>
+                <div class="card-body">
+                    {% for transaction in recent_transactions %}
+                    <div class="d-flex justify-content-between align-items-center mb-3 p-3 border rounded">
+                        <div>
+                            <strong>{{ transaction.reason }}</strong>
+                            <br><small class="text-muted">{{ transaction.created_at|date:"d/m/Y H:i" }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="h5 {% if transaction.transaction_type == 'earned' %}text-success{% else %}text-danger{% endif %}">
+                                {% if transaction.transaction_type == 'earned' %}+{% else %}-{% endif %}{{ transaction.points|floatformat:0|intcomma }}
+                            </span>
+                            <br><small class="text-muted">{{ transaction.get_transaction_type_display }}</small>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center">Aucune transaction pour le moment</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Récompenses disponibles -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-gift me-2"></i>Récompenses disponibles</h5>
+                </div>
+                <div class="card-body">
+                    {% for reward in available_rewards %}
+                    <div class="reward-card {% if user.loyalty.points_balance >= reward.points_required %}available{% endif %}">
+                        <h6>{{ reward.name }}</h6>
+                        <p class="text-muted small">{{ reward.description|truncatewords:15 }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>{{ reward.points_required|floatformat:0|intcomma }} pts</strong>
+                            {% if user.loyalty.points_balance >= reward.points_required %}
+                                <button class="btn btn-success btn-sm" onclick="redeemReward({{ reward.id }})">
+                                    Échanger
+                                </button>
+                            {% else %}
+                                <button class="btn btn-outline-secondary btn-sm" disabled>
+                                    Insuffisant
+                                </button>
+                            {% endif %}
+                        </div>
+                        {% if reward.stock_quantity > 0 %}
+                        <small class="text-muted">Stock: {{ reward.stock_quantity|sub:reward.redeemed_count }}</small>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center">Aucune récompense disponible</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyReferralCode() {
+    const input = document.querySelector('input[value="{{ user.loyalty.referral_code }}"]');
+    input.select();
+    document.execCommand('copy');
+    alert('Code de parrainage copié !');
+}
+
+function shareReferralCode() {
+    const url = `${window.location.origin}/register/?ref={{ user.loyalty.referral_code }}`;
+    if (navigator.share) {
+        navigator.share({
+            title: 'Rejoignez {{ site_name }}',
+            text: 'Inscrivez-vous avec mon code de parrainage et gagnez des points !',
+            url: url
+        });
+    } else {
+        navigator.clipboard.writeText(url);
+        alert('Lien de parrainage copié !');
+    }
+}
+
+function redeemReward(rewardId) {
+    if (confirm('Voulez-vous échanger vos points contre cette récompense ?')) {
+        fetch(`/loyalty/redeem/${rewardId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Récompense échangée avec succès !');
+                location.reload();
+            } else {
+                alert('Erreur: ' + data.error);
+            }
+        });
+    }
+}
+
+// Animation du cercle de progression
+document.addEventListener('DOMContentLoaded', function() {
+    const circle = document.querySelector('.progress-ring-circle');
+    const radius = circle.r.baseVal.value;
+    const circumference = radius * 2 * Math.PI;
+    const offset = circumference - ({{ progress_percentage }} / 100) * circumference;
+    
+    circle.style.strokeDasharray = circumference;
+    circle.style.strokeDashoffset = offset;
+});
+</script>
+{% endblock %}

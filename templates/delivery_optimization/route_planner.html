@@ -1,0 +1,304 @@
+{% extends 'base.html' %}
+
+{% block title %}Planificateur de routes - {{ site_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+#route-map {
+    height: 500px;
+    border-radius: 10px;
+    border: 2px solid var(--primary-color);
+}
+
+.route-optimization {
+    background: linear-gradient(135deg, #17a2b8, #6f42c1);
+    color: white;
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+.delivery-card {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.delivery-card:hover {
+    border-color: var(--primary-color);
+    background: rgba(212, 175, 55, 0.1);
+}
+
+.delivery-card.selected {
+    border-color: #28a745;
+    background: rgba(40, 167, 69, 0.1);
+}
+
+.route-stats {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.optimization-score {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #28a745;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- En-tête optimisation -->
+            <div class="route-optimization">
+                <h2><i class="fas fa-route me-2"></i>Planificateur de routes intelligent</h2>
+                <p class="mb-0">Optimisez vos livraisons pour économiser temps et carburant</p>
+            </div>
+            
+            <!-- Carte -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-map me-2"></i>Carte des livraisons</h5>
+                        <div>
+                            <button class="btn btn-primary btn-sm" onclick="optimizeRoute()">
+                                <i class="fas fa-magic me-1"></i>Optimiser
+                            </button>
+                            <button class="btn btn-success btn-sm" onclick="startRoute()">
+                                <i class="fas fa-play me-1"></i>Démarrer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="route-map"></div>
+                </div>
+            </div>
+            
+            <!-- Statistiques de la route -->
+            <div class="route-stats">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h4 class="text-primary" id="total-distance">0 km</h4>
+                        <small class="text-muted">Distance totale</small>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-info" id="total-duration">0 min</h4>
+                        <small class="text-muted">Durée estimée</small>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-success" id="total-earnings">0 GNF</h4>
+                        <small class="text-muted">Gains estimés</small>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="optimization-score" id="optimization-score">0%</div>
+                        <small class="text-muted">Score d'optimisation</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Livraisons disponibles -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-list me-2"></i>Livraisons disponibles</h5>
+                </div>
+                <div class="card-body" style="max-height: 600px; overflow-y: auto;">
+                    {% for delivery in available_deliveries %}
+                    <div class="delivery-card" data-delivery-id="{{ delivery.id }}" onclick="toggleDelivery(this, {{ delivery.id }})">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">Livraison #{{ delivery.tracking_number }}</h6>
+                                <p class="text-muted small mb-1">{{ delivery.order.shipping_address|truncatewords:8 }}</p>
+                                <small class="text-success">{{ delivery.delivery_cost|floatformat:0 }} GNF</small>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">{{ delivery.created_at|date:"H:i" }}</small>
+                                <br><i class="fas fa-check-circle text-success" style="display: none;"></i>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center">Aucune livraison disponible</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Route actuelle -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-clipboard-list me-2"></i>Route planifiée</h6>
+                </div>
+                <div class="card-body">
+                    <div id="planned-route">
+                        <p class="text-muted text-center">Sélectionnez des livraisons pour créer une route</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let map;
+let selectedDeliveries = [];
+let routeLayer;
+
+// Initialiser la carte
+function initMap() {
+    map = L.map('route-map').setView([9.6412, -13.5784], 12);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Ajouter les livraisons sur la carte
+    {% for delivery in available_deliveries %}
+    {% if delivery.location_point %}
+    L.marker([{{ delivery.location_point.latitude }}, {{ delivery.location_point.longitude }}])
+        .addTo(map)
+        .bindPopup(`
+            <strong>Livraison #{{ delivery.tracking_number }}</strong><br>
+            {{ delivery.order.shipping_address }}<br>
+            <strong>{{ delivery.delivery_cost|floatformat:0 }} GNF</strong>
+        `);
+    {% endif %}
+    {% endfor %}
+}
+
+function toggleDelivery(element, deliveryId) {
+    const index = selectedDeliveries.indexOf(deliveryId);
+    const icon = element.querySelector('.fa-check-circle');
+    
+    if (index > -1) {
+        // Désélectionner
+        selectedDeliveries.splice(index, 1);
+        element.classList.remove('selected');
+        icon.style.display = 'none';
+    } else {
+        // Sélectionner
+        selectedDeliveries.push(deliveryId);
+        element.classList.add('selected');
+        icon.style.display = 'inline';
+    }
+    
+    updatePlannedRoute();
+}
+
+function updatePlannedRoute() {
+    const routeDiv = document.getElementById('planned-route');
+    
+    if (selectedDeliveries.length === 0) {
+        routeDiv.innerHTML = '<p class="text-muted text-center">Sélectionnez des livraisons pour créer une route</p>';
+        return;
+    }
+    
+    let html = '<ol class="list-group list-group-numbered">';
+    selectedDeliveries.forEach((deliveryId, index) => {
+        const deliveryCard = document.querySelector(`[data-delivery-id="${deliveryId}"]`);
+        const title = deliveryCard.querySelector('h6').textContent;
+        html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>${title}</span>
+            <button class="btn btn-sm btn-outline-danger" onclick="removeFromRoute(${deliveryId})">
+                <i class="fas fa-times"></i>
+            </button>
+        </li>`;
+    });
+    html += '</ol>';
+    
+    routeDiv.innerHTML = html;
+}
+
+function removeFromRoute(deliveryId) {
+    const element = document.querySelector(`[data-delivery-id="${deliveryId}"]`);
+    toggleDelivery(element, deliveryId);
+}
+
+function optimizeRoute() {
+    if (selectedDeliveries.length < 2) {
+        alert('Sélectionnez au moins 2 livraisons pour optimiser la route');
+        return;
+    }
+    
+    fetch('/delivery-optimization/optimize-route/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            deliveries: selectedDeliveries
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mettre à jour les statistiques
+            document.getElementById('total-distance').textContent = data.total_distance + ' km';
+            document.getElementById('total-duration').textContent = data.total_duration + ' min';
+            document.getElementById('total-earnings').textContent = data.total_earnings + ' GNF';
+            document.getElementById('optimization-score').textContent = data.optimization_score + '%';
+            
+            // Dessiner la route sur la carte
+            if (routeLayer) {
+                map.removeLayer(routeLayer);
+            }
+            
+            routeLayer = L.polyline(data.route_coordinates, {
+                color: '#d4af37',
+                weight: 4,
+                opacity: 0.8
+            }).addTo(map);
+            
+            map.fitBounds(routeLayer.getBounds());
+            
+            alert('Route optimisée avec succès !');
+        } else {
+            alert('Erreur lors de l\'optimisation: ' + data.error);
+        }
+    });
+}
+
+function startRoute() {
+    if (selectedDeliveries.length === 0) {
+        alert('Sélectionnez des livraisons pour démarrer une route');
+        return;
+    }
+    
+    if (confirm('Démarrer cette route de livraison ?')) {
+        fetch('/delivery-optimization/start-route/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                deliveries: selectedDeliveries
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Route démarrée !');
+                window.location.href = `/delivery-optimization/route/${data.route_id}/`;
+            } else {
+                alert('Erreur: ' + data.error);
+            }
+        });
+    }
+}
+
+// Initialiser la carte
+document.addEventListener('DOMContentLoaded', initMap);
+</script>
+{% endblock %}

@@ -1,0 +1,399 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Enchère: {{ auction.title }} - {{ site_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.auction-header {
+    background: linear-gradient(135deg, #ff6b35, #d4af37);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+}
+
+.countdown-timer {
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 10px;
+    padding: 15px;
+    color: white;
+    text-align: center;
+}
+
+.countdown-item {
+    display: inline-block;
+    margin: 0 10px;
+}
+
+.countdown-number {
+    font-size: 2rem;
+    font-weight: bold;
+    display: block;
+}
+
+.current-bid {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.bid-history {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.bid-item {
+    border-left: 4px solid #d4af37;
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    background: #f8f9fa;
+    border-radius: 0 10px 10px 0;
+}
+
+.bid-item.winning {
+    border-left-color: #28a745;
+    background: #d4edda;
+}
+
+.bid-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    border: 2px solid #d4af37;
+}
+
+.auction-ended {
+    background: #dc3545;
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.reserve-indicator {
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+.reserve-met {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.reserve-not-met {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- En-tête de l'enchère -->
+    <div class="auction-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-2">{{ auction.title }}</h1>
+                <p class="mb-3">{{ auction.description }}</p>
+                <div class="d-flex align-items-center">
+                    <img src="{{ auction.seller.avatar.url|default:'/static/img/default-avatar.png' }}" 
+                         class="rounded-circle me-3" style="width: 40px; height: 40px;">
+                    <div>
+                        <strong>{{ auction.seller.get_full_name|default:auction.seller.username }}</strong>
+                        <br><small class="opacity-75">Vendeur</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                {% if auction.is_live %}
+                    <div class="countdown-timer">
+                        <div id="countdown">
+                            <div class="countdown-item">
+                                <span class="countdown-number" id="hours">00</span>
+                                <small>Heures</small>
+                            </div>
+                            <div class="countdown-item">
+                                <span class="countdown-number" id="minutes">00</span>
+                                <small>Minutes</small>
+                            </div>
+                            <div class="countdown-item">
+                                <span class="countdown-number" id="seconds">00</span>
+                                <small>Secondes</small>
+                            </div>
+                        </div>
+                        <small class="d-block mt-2">Temps restant</small>
+                    </div>
+                {% elif auction.is_ended %}
+                    <div class="auction-ended">
+                        <h4>Enchère terminée</h4>
+                        {% if auction.winner %}
+                            <p>Gagnant: {{ auction.winner.username }}</p>
+                        {% else %}
+                            <p>Aucun gagnant</p>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <h5>Enchère à venir</h5>
+                        <p>Début: {{ auction.start_time|date:"d/m/Y H:i" }}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Produit en enchère -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            {% if auction.product.main_image %}
+                                <img src="{{ auction.product.main_image.image.url }}" 
+                                     class="img-fluid rounded" alt="{{ auction.product.name }}">
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h3>{{ auction.product.name }}</h3>
+                            <p class="text-muted">{{ auction.product.description|truncatewords:30 }}</p>
+                            
+                            <div class="mb-3">
+                                <small class="text-muted">Prix de départ</small>
+                                <div class="h5">{{ auction.starting_price_gnf|floatformat:0|intcomma }} GNF</div>
+                            </div>
+                            
+                            {% if auction.buy_now_price_gnf %}
+                            <div class="mb-3">
+                                <small class="text-muted">Achat immédiat</small>
+                                <div class="h5 text-primary">{{ auction.buy_now_price_gnf|floatformat:0|intcomma }} GNF</div>
+                                {% if auction.is_live and user.is_authenticated and user != auction.seller %}
+                                <button class="btn btn-primary" onclick="buyNow()">
+                                    <i class="fas fa-shopping-cart me-2"></i>Acheter maintenant
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <h6>{{ auction.total_bids }}</h6>
+                                    <small class="text-muted">Enchères</small>
+                                </div>
+                                <div class="col-4">
+                                    <h6>{{ auction.views }}</h6>
+                                    <small class="text-muted">Vues</small>
+                                </div>
+                                <div class="col-4">
+                                    <h6>{{ auction.bids.values:'bidder'|length }}</h6>
+                                    <small class="text-muted">Enchérisseurs</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Historique des enchères -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-history me-2"></i>Historique des enchères</h5>
+                </div>
+                <div class="card-body">
+                    <div class="bid-history">
+                        {% for bid in auction.bids.all %}
+                        <div class="bid-item {% if bid.is_winning %}winning{% endif %}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ bid.bidder.username }}</strong>
+                                    {% if bid.is_winning %}
+                                        <span class="badge bg-success ms-2">Enchère gagnante</span>
+                                    {% endif %}
+                                    <br><small class="text-muted">{{ bid.created_at|date:"d/m/Y H:i:s" }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <h5 class="mb-0">{{ bid.amount_gnf|floatformat:0|intcomma }} GNF</h5>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted text-center">Aucune enchère pour le moment</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Enchère actuelle -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="fas fa-gavel me-2"></i>Enchère actuelle</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="current-bid">{{ auction.current_price_gnf|floatformat:0|intcomma }}</div>
+                    <div class="text-muted">GNF</div>
+                    
+                    {% if auction.reserve_price_gnf %}
+                    <div class="reserve-indicator {% if auction.reserve_met %}reserve-met{% else %}reserve-not-met{% endif %}">
+                        <small>
+                            <i class="fas fa-shield-alt me-1"></i>
+                            Prix de réserve: {{ auction.reserve_price_gnf|floatformat:0|intcomma }} GNF
+                            {% if auction.reserve_met %}
+                                <strong>(Atteint)</strong>
+                            {% else %}
+                                <strong>(Non atteint)</strong>
+                            {% endif %}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Formulaire d'enchère -->
+            {% if auction.is_live and user.is_authenticated and user != auction.seller %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-hand-paper me-2"></i>Placer une enchère</h5>
+                </div>
+                <div class="card-body">
+                    <div class="bid-form">
+                        <form id="bid-form">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label class="form-label">Votre enchère (GNF)</label>
+                                <input type="number" class="form-control" id="bid-amount" 
+                                       min="{{ auction.current_price_gnf|add:auction.minimum_bid_increment_gnf }}"
+                                       value="{{ auction.current_price_gnf|add:auction.minimum_bid_increment_gnf }}"
+                                       step="1000" required>
+                                <small class="text-muted">Minimum: {{ auction.current_price_gnf|add:auction.minimum_bid_increment_gnf|floatformat:0|intcomma }} GNF</small>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="fas fa-gavel me-2"></i>Enchérir
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% elif not user.is_authenticated %}
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <p>Connectez-vous pour enchérir</p>
+                    <a href="{% url 'accounts:login' %}" class="btn btn-primary">Se connecter</a>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Informations -->
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-info-circle me-2"></i>Informations</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <small class="text-muted">Début:</small>
+                        <br><strong>{{ auction.start_time|date:"d/m/Y H:i" }}</strong>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Fin:</small>
+                        <br><strong>{{ auction.end_time|date:"d/m/Y H:i" }}</strong>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Enchère minimum:</small>
+                        <br><strong>{{ auction.minimum_bid_increment_gnf|floatformat:0|intcomma }} GNF</strong>
+                    </div>
+                    {% if auction.auto_extend_minutes %}
+                    <div class="mb-2">
+                        <small class="text-muted">Extension auto:</small>
+                        <br><strong>{{ auction.auto_extend_minutes }} minutes</strong>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Compte à rebours
+function updateCountdown() {
+    const endTime = new Date('{{ auction.end_time|date:"c" }}').getTime();
+    const now = new Date().getTime();
+    const timeLeft = endTime - now;
+    
+    if (timeLeft > 0) {
+        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+        
+        document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
+        document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
+        document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+    } else {
+        document.getElementById('countdown').innerHTML = '<div class="text-center"><h4>Enchère terminée !</h4></div>';
+        location.reload();
+    }
+}
+
+// Mettre à jour toutes les secondes
+setInterval(updateCountdown, 1000);
+updateCountdown();
+
+// Formulaire d'enchère
+document.getElementById('bid-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const amount = document.getElementById('bid-amount').value;
+    
+    if (confirm(`Confirmer votre enchère de ${parseInt(amount).toLocaleString()} GNF ?`)) {
+        fetch(`/marketplace/auction/{{ auction.id }}/bid/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                amount: amount
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Enchère placée avec succès !');
+                location.reload();
+            } else {
+                alert('Erreur: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Erreur lors de l\'enchère');
+        });
+    }
+});
+
+function buyNow() {
+    if (confirm(`Acheter maintenant pour {{ auction.buy_now_price_gnf|floatformat:0|intcomma }} GNF ?`)) {
+        fetch(`/marketplace/auction/{{ auction.id }}/buy-now/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Achat immédiat réussi !');
+                window.location.href = `/orders/${data.order_id}/`;
+            } else {
+                alert('Erreur: ' + data.error);
+            }
+        });
+    }
+}
+</script>
+{% endblock %}
