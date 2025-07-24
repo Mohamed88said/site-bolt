@@ -8,47 +8,33 @@ import string
 import qrcode
 from io import BytesIO
 from django.core.files import File
-import os
 from django.utils import timezone
-import json
 
 User = get_user_model()
 
 class Payment(models.Model):
     PAYMENT_METHOD_CHOICES = [
-        ('card', _('Carte bancaire')),
-        ('stripe', _('Stripe')),
+        ('stripe', _('Carte bancaire')),
         ('paypal', _('PayPal')),
         ('mobile_money', _('Mobile Money')),
         ('cash_on_delivery', _('Paiement à la livraison')),
-        ('store_pickup', _('Retrait en boutique')),
-        ('qr_scan', _('Scan QR Code')),
     ]
     
     STATUS_CHOICES = [
         ('pending', _('En attente')),
-        ('awaiting_scan', _('En attente de scan QR')),
         ('processing', _('En cours')),
         ('completed', _('Terminé')),
         ('failed', _('Échoué')),
         ('cancelled', _('Annulé')),
-        ('refunded', _('Remboursé')),
-        ('pending_delivery_confirmation', _('En attente de confirmation du livreur')),
-        ('requires_action', _('Action requise')),
-        ('requires_payment_method', _('Méthode de paiement requise')),
-        ('scanned_pending_payment', _('QR scanné - En attente de paiement')),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='payment')
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')  # Changé de max_length=20 à max_length=30
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     confirmation_code = models.CharField(max_length=6, unique=True, blank=True)
-    qr_code = models.TextField(blank=True)
     qr_code_image = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
-    confirmation_attempts = models.PositiveIntegerField(default=0)
-    qr_code_expires_at = models.DateTimeField(null=True, blank=True)
     
     # Identifiants des processeurs de paiement
     stripe_payment_intent_id = models.CharField(max_length=200, blank=True)
@@ -57,7 +43,6 @@ class Payment(models.Model):
     mobile_money_provider = models.CharField(max_length=50, blank=True)
     mobile_money_phone = models.CharField(max_length=20, blank=True)
     
-    payment_gateway_response = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     confirmed_at = models.DateTimeField(null=True, blank=True)
     
@@ -68,32 +53,11 @@ class Payment(models.Model):
     def __str__(self):
         return f"Paiement {self.id} - {self.order}"
     
-    @property
-    def transaction_id(self):
-        """Retourne l'ID de transaction approprié selon le mode de paiement"""
-        if self.payment_method == 'stripe' and self.stripe_payment_intent_id:
-            return self.stripe_payment_intent_id
-        elif self.payment_method == 'paypal' and self.paypal_order_id:
-            return self.paypal_order_id
-        elif self.payment_method == 'mobile_money' and self.mobile_money_transaction_id:
-            return self.mobile_money_transaction_id
-        return ''
-    
-    def save_gateway_response(self, response_data):
-        """Sauvegarder la réponse de la passerelle de paiement"""
-        if isinstance(response_data, dict):
-            self.payment_gateway_response = response_data
-        else:
-            self.payment_gateway_response = {'raw_response': str(response_data)}
-        self.save()
-    
     def save(self, *args, **kwargs):
         if not self.confirmation_code:
             self.confirmation_code = self.generate_confirmation_code()
-        if not self.qr_code:
-            self.qr_code = self.generate_qr_code_data()
+        if not self.qr_code_image:
             self.generate_qr_code_image()
-            self.qr_code_expires_at = timezone.now() + timezone.timedelta(minutes=10)
         super().save(*args, **kwargs)
     
     def generate_confirmation_code(self):
@@ -103,99 +67,29 @@ class Payment(models.Model):
             if not Payment.objects.filter(confirmation_code=code).exists():
                 return code
     
-    def generate_qr_code_data(self):
-        """Générer les données pour le QR code"""
-        return f"ORDER:{self.order.id}|PAYMENT:{self.id}|CODE:{self.confirmation_code}|AMOUNT:{self.amount}|DELIVERY_COST:{self.order.delivery.delivery_cost if hasattr(self.order, 'delivery') else 0}|PAID_BY:{self.order.delivery.paid_by if hasattr(self.order, 'delivery') else 'buyer'}"
-    
     def generate_qr_code_image(self):
         """Générer et sauvegarder l'image QR code"""
+        qr_data = f"ORDER:{self.order.id}|PAYMENT:{self.id}|CODE:{self.confirmation_code}|AMOUNT:{self.amount}"
+        
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
             box_size=10,
             border=4,
         )
-        qr.add_data(self.qr_code)
+        qr.add_data(qr_data)
         qr.make(fit=True)
         img = qr.make_image(fill_color="black", back_color="white")
         
         buffer = BytesIO()
-        img.save(buffer)
+        img.save(buffer, format='PNG')
         filename = f"qrcode_{self.id}.png"
         self.qr_code_image.save(filename, File(buffer), save=False)
         buffer.close()
-    
-    def get_confirmation_url(self):
-        """Générer l'URL pour la page de confirmation"""
-        from django.urls import reverse
-        return reverse('payments:qr_scan_payment', kwargs={'payment_id': self.id})
     
     @property
     def qr_scan_url(self):
         """URL pour scanner le QR code"""
         from django.urls import reverse
         from django.conf import settings
-        return f"{settings.SITE_URL}{reverse('payments:qr_scan_payment', kwargs={'payment_id': self.id})}"
-
-class PaymentConfirmation(models.Model):
-    payment = models.ForeignKey(Payment, on_delete=models.CASCADE, related_name='confirmations')
-    confirmed_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    confirmation_method = models.CharField(max_length=20, choices=[
-        ('qr_code', _('QR Code')),
-        ('manual_code', _('Code manuel')),
-        ('admin', _('Administrateur')),
-    ])
-    confirmed_at = models.DateTimeField(auto_now_add=True)
-    notes = models.TextField(blank=True)
-    
-    class Meta:
-        verbose_name = _('Confirmation de paiement')
-        verbose_name_plural = _('Confirmations de paiement')
-    
-    def __str__(self):
-        return f"Confirmation {self.payment} par {self.confirmed_by}"
-
-class PaymentDispute(models.Model):
-    payment = models.ForeignKey(Payment, on_delete=models.CASCADE, related_name='disputes')
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    reason = models.TextField()
-    evidence = models.FileField(upload_to='dispute_evidences/', blank=True, null=True)
-    status = models.CharField(max_length=20, choices=[
-        ('pending', 'En attente'),
-        ('resolved', 'Résolu'),
-        ('rejected', 'Rejeté')
-    ], default='pending')
-    created_at = models.DateTimeField(auto_now_add=True)
-    resolved_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        verbose_name = 'Litige de paiement'
-        verbose_name_plural = 'Litiges de paiement'
-
-    def __str__(self):
-        return f"Litige {self.id} pour paiement {self.payment.id}"
-
-class Invoice(models.Model):
-    payment = models.OneToOneField(Payment, on_delete=models.CASCADE, related_name='invoice')
-    invoice_number = models.CharField(max_length=20, unique=True)
-    pdf_file = models.FileField(upload_to='invoices/', blank=True)
-    generated_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        verbose_name = _('Facture')
-        verbose_name_plural = _('Factures')
-    
-    def __str__(self):
-        return f"Facture {self.invoice_number}"
-    
-    def save(self, *args, **kwargs):
-        if not self.invoice_number:
-            self.invoice_number = self.generate_invoice_number()
-        super().save(*args, **kwargs)
-    
-    def generate_invoice_number(self):
-        """Générer un numéro de facture unique"""
-        from datetime import datetime
-        year = datetime.now().year
-        count = Invoice.objects.filter(generated_at__year=year).count() + 1
-        return f"INV-{year}-{count:06d}"
+        return f"{settings.SITE_URL}{reverse('payments:qr_scan', kwargs={'payment_id': self.id})}"

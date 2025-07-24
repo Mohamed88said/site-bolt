@@ -4,15 +4,9 @@ from . import views
 app_name = 'payments'
 
 urlpatterns = [
-    path('qr-scan/<uuid:payment_id>/', views.qr_scan_payment, name='qr_scan_payment'),
-    path('process-qr/<uuid:payment_id>/', views.process_qr_payment, name='process_qr_payment'),
-    path('create-stripe/<uuid:order_id>/', views.create_stripe_payment, name='create_stripe_payment'),
-    path('create-paypal/<uuid:order_id>/', views.create_paypal_payment, name='create_paypal_payment'),
-    path('create-mobile-money/<uuid:order_id>/', views.create_mobile_money_payment, name='create_mobile_money_payment'),
-    path('success/<uuid:payment_id>/', views.payment_success, name='payment_success'),
-    path('mobile-money/callback/', views.mobile_money_callback, name='mobile_money_callback'),
-    path('confirm/<uuid:payment_id>/', views.confirm_payment, name='confirm_payment'),
-    path('confirm-cash/<uuid:payment_id>/', views.confirm_cash_payment, name='confirm_cash_payment'),
-    path('dispute/<uuid:payment_id>/', views.dispute_payment, name='dispute_payment'),
-    path('dispute/<int:dispute_id>/detail/', views.dispute_detail, name='dispute_detail'),
+    path('qr-scan/<uuid:payment_id>/', views.qr_scan_payment, name='qr_scan'),
+    path('process/<uuid:payment_id>/', views.process_payment, name='process'),
+    path('stripe/<uuid:payment_id>/', views.process_stripe, name='process_stripe'),
+    path('paypal/<uuid:payment_id>/', views.process_paypal, name='process_paypal'),
+    path('mobile-money/<uuid:payment_id>/', views.process_mobile_money, name='process_mobile_money'),
 ]

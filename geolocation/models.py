@@ -1,9 +1,8 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
-from geopy.geocoders import Nominatim
-from .distance_calculator import DistanceCalculator
 from decimal import Decimal
+import math
 
 User = get_user_model()
 
@@ -50,30 +49,20 @@ class GuineaCommune(models.Model):
 
 class LocationPoint(models.Model):
     """Points de localisation avec coordonnées GPS"""
-    user = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='created_locations',
-        verbose_name=_('Créé par')
-    )
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_locations')
     name = models.CharField(max_length=200, verbose_name=_('Nom du lieu'))
     description = models.TextField(blank=True, verbose_name=_('Description'))
     latitude = models.DecimalField(max_digits=10, decimal_places=8, verbose_name=_('Latitude'))
     longitude = models.DecimalField(max_digits=11, decimal_places=8, verbose_name=_('Longitude'))
     
     # Localisation administrative
-    region = models.ForeignKey(GuineaRegion, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_('Région'))
-    prefecture = models.ForeignKey(GuineaPrefecture, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_('Préfecture'))
-    commune = models.ForeignKey(GuineaCommune, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_('Commune'))
+    region = models.ForeignKey(GuineaRegion, on_delete=models.SET_NULL, null=True, blank=True)
+    prefecture = models.ForeignKey(GuineaPrefecture, on_delete=models.SET_NULL, null=True, blank=True)
+    commune = models.ForeignKey(GuineaCommune, on_delete=models.SET_NULL, null=True, blank=True)
     
-    # Informations complémentaires
+    # Informations d'adresse
     address = models.CharField(max_length=255, blank=True, verbose_name=_('Adresse'))
     city = models.CharField(max_length=100, blank=True, verbose_name=_('Ville'))
-    postal_code = models.CharField(max_length=20, blank=True, verbose_name=_('Code postal'))
-    country = models.CharField(max_length=100, blank=True, verbose_name=_('Pays'))
-    address_details = models.TextField(blank=True, verbose_name=_('Détails de l\'adresse'))
     landmark = models.CharField(max_length=200, blank=True, verbose_name=_('Point de repère'))
     access_instructions = models.TextField(blank=True, verbose_name=_('Instructions d\'accès'))
     
@@ -81,8 +70,8 @@ class LocationPoint(models.Model):
     verified_by_locals = models.BooleanField(default=False, verbose_name=_('Vérifié par les locaux'))
     verification_count = models.IntegerField(default=0, verbose_name=_('Nombre de vérifications'))
     is_active = models.BooleanField(default=True, verbose_name=_('Actif'))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Créé le'))
-    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Mis à jour le'))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         verbose_name = _('Point de localisation')
@@ -98,72 +87,49 @@ class LocationPoint(models.Model):
     
     @property
     def full_address(self):
-        parts = [self.address] if self.address else []
+        parts = []
+        if self.address:
+            parts.append(self.address)
         if self.city:
             parts.append(self.city)
-        if self.postal_code:
-            parts.append(self.postal_code)
-        if self.country:
-            parts.append(self.country)
+        if self.commune:
+            parts.append(self.commune.name)
+        if self.prefecture:
+            parts.append(self.prefecture.name)
+        if self.region:
+            parts.append(self.region.name)
         return ", ".join(parts) or "Adresse non définie"
-
+    
     def calculate_distance_to(self, other_location):
-        """Calcule la distance vers un autre point"""
-        if not other_location or not all([
-            self.latitude, self.longitude, 
-            other_location.latitude, other_location.longitude
-        ]):
+        """Calcule la distance vers un autre point en km"""
+        if not other_location:
             return None
         
-        return DistanceCalculator.get_best_distance(
-            float(self.latitude), float(self.longitude),
-            float(other_location.latitude), float(other_location.longitude)
-        )
-    
-    def get_nearby_delivery_persons(self, radius_km=10):
-        """Trouve les livreurs dans un rayon donné"""
-        from deliveries.models import DeliveryPerson
+        lat1, lon1 = float(self.latitude), float(self.longitude)
+        lat2, lon2 = float(other_location.latitude), float(other_location.longitude)
         
-        nearby_persons = []
-        delivery_persons = DeliveryPerson.objects.filter(
-            availability_status='available',
-            location_point__isnull=False
-        ).select_related('user', 'location_point')
+        # Formule de Haversine
+        R = 6371  # Rayon de la Terre en km
         
-        for person in delivery_persons:
-            distance_info = self.calculate_distance_to(person.location_point)
-            if distance_info and distance_info['success']:
-                if distance_info['distance_km'] <= radius_km:
-                    nearby_persons.append({
-                        'person': person,
-                        'distance_km': distance_info['distance_km'],
-                        'duration_min': distance_info['duration_min']
-                    })
+        lat1_rad = math.radians(lat1)
+        lat2_rad = math.radians(lat2)
+        delta_lat = math.radians(lat2 - lat1)
+        delta_lon = math.radians(lon2 - lon1)
         
-        # Trier par distance
-        nearby_persons.sort(key=lambda x: x['distance_km'])
-        return nearby_persons
-    @classmethod
-    def geocode_address(cls, address, city, country):
-        geolocator = Nominatim(user_agent="ecommerce_app")
-        location = geolocator.geocode(f"{address}, {city}, {country}")
-        if location:
-            return location.latitude, location.longitude
-        return 9.6412, -13.5784  # Coordonnées par défaut pour Conakry, Guinée
+        a = (math.sin(delta_lat / 2) ** 2 + 
+             math.cos(lat1_rad) * math.cos(lat2_rad) * 
+             math.sin(delta_lon / 2) ** 2)
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        
+        return R * c
 
 class UserLocation(models.Model):
     """Localisation des utilisateurs"""
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='locations',
-        verbose_name=_('Utilisateur')
-    )
-    location_point = models.ForeignKey(LocationPoint, on_delete=models.CASCADE, related_name='user_locations', verbose_name=_('Point de localisation'))
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='locations')
+    location_point = models.ForeignKey(LocationPoint, on_delete=models.CASCADE, related_name='user_locations')
     is_primary = models.BooleanField(default=False, verbose_name=_('Adresse principale'))
     label = models.CharField(max_length=50, blank=True, verbose_name=_('Libellé'))
-    additional_info = models.TextField(blank=True, verbose_name=_('Informations supplémentaires'))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Créé le'))
+    created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         verbose_name = _('Localisation utilisateur')
@@ -174,42 +140,18 @@ class UserLocation(models.Model):
     
     def save(self, *args, **kwargs):
         if self.is_primary:
-            self.__class__.objects.filter(user=self.user, is_primary=True).exclude(id=self.id).update(is_primary=False)
+            UserLocation.objects.filter(user=self.user, is_primary=True).exclude(id=self.id).update(is_primary=False)
         super().save(*args, **kwargs)
-
-class LocationVerification(models.Model):
-    """Vérifications de localisation par les utilisateurs locaux"""
-    location_point = models.ForeignKey(LocationPoint, on_delete=models.CASCADE, related_name='verifications', verbose_name=_('Point de localisation'))
-    verified_by = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='location_verifications',
-        verbose_name=_('Vérifié par')
-    )
-    is_accurate = models.BooleanField(verbose_name=_('Localisation exacte'))
-    suggested_correction = models.TextField(blank=True, verbose_name=_('Correction suggérée'))
-    local_description = models.TextField(blank=True, verbose_name=_('Description locale'))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Créé le'))
-    
-    class Meta:
-        verbose_name = _('Vérification de localisation')
-        verbose_name_plural = _('Vérifications de localisation')
-        unique_together = ['location_point', 'verified_by']
-    
-    def __str__(self):
-        return f"Vérification de {self.location_point.name} par {self.verified_by.username}"
 
 class DeliveryZone(models.Model):
     """Zones de livraison avec tarification"""
     name = models.CharField(max_length=100, verbose_name=_('Nom de la zone'))
-    regions = models.ManyToManyField(GuineaRegion, blank=True, related_name='delivery_zones', verbose_name=_('Régions'))
-    prefectures = models.ManyToManyField(GuineaPrefecture, blank=True, related_name='delivery_zones', verbose_name=_('Préfectures'))
-    communes = models.ManyToManyField(GuineaCommune, blank=True, related_name='delivery_zones', verbose_name=_('Communes'))
-    base_delivery_cost = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_('Coût de base'))
-    cost_per_km = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name=_('Coût par km'))
-    free_delivery_threshold = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name=_('Seuil livraison gratuite'))
-    estimated_delivery_days = models.IntegerField(default=1, verbose_name=_('Délai estimé (jours)'))
-    max_distance_km = models.IntegerField(default=50, verbose_name=_('Distance maximale (km)'))
+    regions = models.ManyToManyField(GuineaRegion, blank=True, related_name='delivery_zones')
+    prefectures = models.ManyToManyField(GuineaPrefecture, blank=True, related_name='delivery_zones')
+    communes = models.ManyToManyField(GuineaCommune, blank=True, related_name='delivery_zones')
+    base_delivery_cost = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_('Coût de base (GNF)'))
+    cost_per_km = models.DecimalField(max_digits=5, decimal_places=2, default=1000, verbose_name=_('Coût par km (GNF)'))
+    estimated_delivery_time = models.CharField(max_length=50, default="24-48h", verbose_name=_('Délai estimé'))
     is_active = models.BooleanField(default=True, verbose_name=_('Actif'))
     
     class Meta:
@@ -221,27 +163,8 @@ class DeliveryZone(models.Model):
     
     def calculate_delivery_cost(self, distance_km):
         """Calcule le coût de livraison pour cette zone"""
-        if distance_km > self.max_distance_km:
-            return None  # Hors zone
+        if distance_km <= 0:
+            return self.base_delivery_cost
         
         total_cost = float(self.base_delivery_cost) + (distance_km * float(self.cost_per_km))
         return Decimal(str(round(total_cost, 2)))
-    
-    def is_location_in_zone(self, location_point):
-        """Vérifie si un point est dans cette zone"""
-        if not location_point:
-            return False
-        
-        # Vérifier par commune d'abord (plus précis)
-        if location_point.commune and self.communes.filter(id=location_point.commune.id).exists():
-            return True
-        
-        # Puis par préfecture
-        if location_point.prefecture and self.prefectures.filter(id=location_point.prefecture.id).exists():
-            return True
-        
-        # Enfin par région
-        if location_point.region and self.regions.filter(id=location_point.region.id).exists():
-            return True
-        
-        return False

@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Paiement Mobile Money - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5><i class="fas fa-mobile-alt me-2"></i>Paiement Mobile Money</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>Montant à payer :</strong> {{ payment.amount|floatformat:0 }} GNF
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Fournisseur</label>
+                            <select class="form-select" name="provider" required>
+                                <option value="">Choisir un fournisseur</option>
+                                <option value="orange">Orange Money</option>
+                                <option value="mtn">MTN Money</option>
+                                <option value="moov">Moov Money</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Numéro de téléphone</label>
+                            <input type="tel" class="form-control" name="phone_number" 
+                                   placeholder="+224 XXX XXX XXX" required>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-warning w-100">
+                            <i class="fas fa-mobile-alt me-2"></i>Payer avec Mobile Money
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
