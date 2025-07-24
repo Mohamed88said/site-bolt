@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+
+{% block title %}Tableau de bord livreur - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-truck me-2"></i>Tableau de bord livreur</h2>
+        <div>
+            <span class="badge bg-{% if user.delivery_profile.is_available %}success{% else %}danger{% endif %} fs-6">
+                {% if user.delivery_profile.is_available %}Disponible{% else %}Indisponible{% endif %}
+            </span>
+        </div>
+    </div>
+    
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.total_deliveries|default:0 }}</h4>
+                            <p class="mb-0">Livraisons totales</p>
+                        </div>
+                        <i class="fas fa-truck fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.completed_deliveries|default:0 }}</h4>
+                            <p class="mb-0">Livraisons réussies</p>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.average_rating|default:0|floatformat:1 }}/5</h4>
+                            <p class="mb-0">Note moyenne</p>
+                        </div>
+                        <i class="fas fa-star fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.earnings|default:0 }}€</h4>
+                            <p class="mb-0">Gains ce mois</p>
+                        </div>
+                        <i class="fas fa-euro-sign fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Livraisons en cours -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-clock me-2"></i>Livraisons en cours</h5>
+                </div>
+                <div class="card-body">
+                    {% if active_deliveries %}
+                    {% for delivery in active_deliveries %}
+                    <div class="card mb-3 border-primary">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <h6>Livraison #{{ delivery.tracking_number }}</h6>
+                                    <p class="mb-1">
+                                        <i class="fas fa-user me-1"></i>
+                                        {{ delivery.order.user.get_full_name|default:delivery.order.user.username }}
+                                    </p>
+                                    <p class="mb-0">
+                                        <i class="fas fa-map-marker-alt me-1"></i>
+                                        {{ delivery.order.shipping_city }}
+                                    </p>
+                                </div>
+                                <div class="col-md-3">
+                                    <span class="badge bg-{% if delivery.status == 'in_progress' %}info{% else %}warning{% endif %}">
+                                        {{ delivery.get_status_display }}
+                                    </span>
+                                    <br><strong>{{ delivery.delivery_cost }}€</strong>
+                                </div>
+                                <div class="col-md-3">
+                                    {% if delivery.status == 'assigned' %}
+                                    <a href="{% url 'deliveries:start' delivery.id %}" class="btn btn-success btn-sm w-100">
+                                        <i class="fas fa-play me-1"></i>Démarrer
+                                    </a>
+                                    {% elif delivery.status == 'in_progress' %}
+                                    <a href="{% url 'deliveries:complete' delivery.id %}" class="btn btn-primary btn-sm w-100">
+                                        <i class="fas fa-check me-1"></i>Terminer
+                                    </a>
+                                    {% endif %}
+                                    <a href="{% url 'deliveries:detail' delivery.pk %}" class="btn btn-outline-primary btn-sm w-100 mt-1">
+                                        <i class="fas fa-eye me-1"></i>Détails
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                        <h6>Aucune livraison en cours</h6>
+                        <a href="{% url 'deliveries:available' %}" class="btn btn-primary">
+                            <i class="fas fa-search me-2"></i>Voir les livraisons disponibles
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Panel de contrôle -->
+        <div class="col-lg-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-user-cog me-2"></i>Mon statut</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'deliveries:toggle_availability' %}">
+                        {% csrf_token %}
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="availability" 
+                                   {% if user.delivery_profile.is_available %}checked{% endif %}
+                                   onchange="this.form.submit()">
+                            <label class="form-check-label" for="availability">
+                                Disponible pour les livraisons
+                            </label>
+                        </div>
+                    </form>
+                    
+                    <hr>
+                    
+                    <div class="mb-2">
+                        <small class="text-muted">Véhicule</small>
+                        <br><strong>{{ user.delivery_profile.get_vehicle_type_display }}</strong>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Rayon d'action</small>
+                        <br><strong>{{ user.delivery_profile.availability_radius }} km</strong>
+                    </div>
+                    <div>
+                        <small class="text-muted">Note moyenne</small>
+                        <br>
+                        <div class="rating">
+                            {% for i in "12345" %}
+                                {% if user.delivery_profile.rating >= i|add:0 %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% else %}
+                                    <i class="far fa-star text-muted"></i>
+                                {% endif %}
+                            {% endfor %}
+                            <span class="ms-1">{{ user.delivery_profile.rating|default:0 }}/5</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Actions rapides -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-bolt me-2"></i>Actions rapides</h6>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'deliveries:available' %}" class="btn btn-primary w-100 mb-2">
+                        <i class="fas fa-search me-2"></i>Livraisons disponibles
+                    </a>
+                    <a href="{% url 'deliveries:list' %}" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="fas fa-list me-2"></i>Mes livraisons
+                    </a>
+                    <a href="{% url 'accounts:delivery_profile_update' %}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-cog me-2"></i>Paramètres
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Dernières évaluations -->
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-star me-2"></i>Dernières évaluations</h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_ratings %}
+                    {% for rating in recent_ratings %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="rating">
+                                {% for i in "12345" %}
+                                    {% if rating.rating >= i|add:0 %}
+                                        <i class="fas fa-star text-warning"></i>
+                                    {% else %}
+                                        <i class="far fa-star text-muted"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <small class="text-muted">{{ rating.created_at|date:"d/m" }}</small>
+                        </div>
+                        {% if rating.comment %}
+                        <p class="mb-0 small">{{ rating.comment|truncatewords:10 }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted text-center">Aucune évaluation pour le moment</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

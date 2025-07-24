@@ -5,6 +5,8 @@ app_name = 'deliveries'
 
 urlpatterns = [
     path('', views.DeliveryListView.as_view(), name='list'),
+    path('dashboard/', views.delivery_dashboard, name='delivery_dashboard'),
+    path('toggle-availability/', views.toggle_availability, name='toggle_availability'),
     path('<int:pk>/', views.DeliveryDetailView.as_view(), name='detail'),
     path('available/', views.available_deliveries, name='available'),
     path('request/<int:delivery_id>/', views.request_delivery, name='request'),

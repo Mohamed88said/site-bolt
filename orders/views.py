@@ -22,6 +22,16 @@ from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from django.utils.translation import gettext_lazy as _
 
+@login_required
+def order_tracking(request, pk):
+    """Page de suivi détaillé d'une commande"""
+    order = get_object_or_404(Order, pk=pk, user=request.user)
+    
+    context = {
+        'order': order,
+    }
+    
+    return render(request, 'orders/order_tracking.html', context)
 class OrderListView(LoginRequiredMixin, ListView):
     model = Order
     template_name = 'orders/list.html'

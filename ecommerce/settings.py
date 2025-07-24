@@ -167,6 +167,19 @@ LOGOUT_REDIRECT_URL = '/'
 STRIPE_PUBLIC_KEY = config('STRIPE_PUBLIC_KEY', default='')
 STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
 
+# PayPal Settings
+PAYPAL_CLIENT_ID = config('PAYPAL_CLIENT_ID', default='')
+PAYPAL_CLIENT_SECRET = config('PAYPAL_CLIENT_SECRET', default='')
+PAYPAL_MODE = config('PAYPAL_MODE', default='sandbox')  # 'sandbox' ou 'live'
+
+# Mobile Money Settings
+MOBILE_MONEY_API_URL = config('MOBILE_MONEY_API_URL', default='')
+MOBILE_MONEY_API_KEY = config('MOBILE_MONEY_API_KEY', default='')
+MOBILE_MONEY_MERCHANT_ID = config('MOBILE_MONEY_MERCHANT_ID', default='')
+
+# Site URL for callbacks
+SITE_URL = config('SITE_URL', default='http://localhost:8000')
+
 CKEDITOR_5_CONFIGS = {
     'default': {
         'toolbar': ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', 'blockQuote'],

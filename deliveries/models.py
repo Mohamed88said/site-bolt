@@ -7,6 +7,7 @@ from datetime import timedelta
 import requests
 import uuid
 from django.core.cache import cache
+from geolocation.distance_calculator import DistanceCalculator
 
 User = get_user_model()
 
@@ -106,36 +107,65 @@ class Delivery(models.Model):
         if not self.location_point or not self.delivery_zone:
             return self.delivery_cost
         
-        start_coords = (9.6412, -13.5784)  # Conakry, Guinée
+        # Obtenir les coordonnées du vendeur
+        seller = self.order.items.first().product.seller if self.order.items.exists() else None
+        if seller and hasattr(seller, 'seller_profile'):
+            # Essayer d'obtenir la localisation du vendeur
+            seller_location = getattr(seller.seller_profile, 'location_point', None)
+            if seller_location:
+                start_coords = (float(seller_location.latitude), float(seller_location.longitude))
+            else:
+                # Fallback: géocoder l'adresse du vendeur
+                if seller.address and seller.city:
+                    start_coords = LocationPoint.geocode_address(seller.address, seller.city, seller.country or 'Guinée')
+                else:
+                    start_coords = (9.6412, -13.5784)  # Conakry par défaut
+        else:
+            start_coords = (9.6412, -13.5784)  # Conakry par défaut
+            
         end_coords = (self.location_point.latitude, self.location_point.longitude)
         
         try:
-            distance = self._get_distance(start_coords, end_coords)
-            cost = self.delivery_zone.base_delivery_cost + (self.delivery_zone.cost_per_km * distance)
-            return round(cost, 2)
+            distance_info = DistanceCalculator.get_best_distance(
+                start_coords[0], start_coords[1],
+                float(end_coords[0]), float(end_coords[1])
+            )
+            
+            if distance_info['success']:
+                distance_km = distance_info['distance_km']
+                cost = self.delivery_zone.calculate_delivery_cost(distance_km)
+                return cost if cost else self.delivery_zone.base_delivery_cost
+            else:
+                return self.delivery_zone.base_delivery_cost
         except Exception as e:
             print(f"Erreur calcul distance: {e}")
             return self.delivery_zone.base_delivery_cost
     
-    def _get_distance(self, start_coords, end_coords):
-        cache_key = f"distance_{start_coords[0]}_{start_coords[1]}_{end_coords[0]}_{end_coords[1]}"
-        cached_distance = cache.get(cache_key)
-        if cached_distance is not None:
-            return cached_distance
+    def get_distance_info(self):
+        """Obtient les informations de distance pour cette livraison"""
+        if not self.location_point:
+            return None
         
-        url = f"http://router.project-osrm.org/route/v1/driving/{start_coords[1]},{start_coords[0]};{end_coords[1]},{end_coords[0]}?overview=false"
-        try:
-            response = requests.get(url, timeout=5)
-            response.raise_for_status()
-            data = response.json()
-            if data['routes']:
-                distance_meters = data['routes'][0]['distance']
-                distance_km = distance_meters / 1000
-                cache.set(cache_key, distance_km, timeout=3600)  # Cache pour 1 heure
-                return distance_km
-        except requests.RequestException as e:
-            print(f"Erreur OSRM: {e}")
-        return 0.0
+        seller = self.order.items.first().product.seller if self.order.items.exists() else None
+        if not seller:
+            return None
+        
+        # Coordonnées du vendeur
+        seller_location = getattr(seller.seller_profile, 'location_point', None) if hasattr(seller, 'seller_profile') else None
+        if seller_location:
+            start_coords = (float(seller_location.latitude), float(seller_location.longitude))
+        else:
+            if seller.address and seller.city:
+                start_coords = LocationPoint.geocode_address(seller.address, seller.city, seller.country or 'Guinée')
+            else:
+                start_coords = (9.6412, -13.5784)
+        
+        end_coords = (float(self.location_point.latitude), float(self.location_point.longitude))
+        
+        return DistanceCalculator.get_best_distance(
+            start_coords[0], start_coords[1],
+            end_coords[0], end_coords[1]
+        )
 
 class DeliveryRequest(models.Model):
     delivery = models.ForeignKey(Delivery, on_delete=models.CASCADE, related_name='requests')

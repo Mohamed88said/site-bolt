@@ -10,12 +10,15 @@ from io import BytesIO
 from django.core.files import File
 import os
 from django.utils import timezone
+import json
 
 User = get_user_model()
 
 class Payment(models.Model):
     PAYMENT_METHOD_CHOICES = [
         ('card', _('Carte bancaire')),
+        ('stripe', _('Stripe')),
+        ('paypal', _('PayPal')),
         ('mobile_money', _('Mobile Money')),
         ('cash_on_delivery', _('Paiement à la livraison')),
         ('store_pickup', _('Retrait en boutique')),
@@ -29,6 +32,8 @@ class Payment(models.Model):
         ('cancelled', _('Annulé')),
         ('refunded', _('Remboursé')),
         ('pending_delivery_confirmation', _('En attente de confirmation du livreur')),
+        ('requires_action', _('Action requise')),
+        ('requires_payment_method', _('Méthode de paiement requise')),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -41,7 +46,14 @@ class Payment(models.Model):
     qr_code_image = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
     confirmation_attempts = models.PositiveIntegerField(default=0)
     qr_code_expires_at = models.DateTimeField(null=True, blank=True)
-    transaction_id = models.CharField(max_length=100, blank=True)
+    
+    # Identifiants des processeurs de paiement
+    stripe_payment_intent_id = models.CharField(max_length=200, blank=True)
+    paypal_order_id = models.CharField(max_length=200, blank=True)
+    mobile_money_transaction_id = models.CharField(max_length=200, blank=True)
+    mobile_money_provider = models.CharField(max_length=50, blank=True)
+    mobile_money_phone = models.CharField(max_length=20, blank=True)
+    
     payment_gateway_response = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     confirmed_at = models.DateTimeField(null=True, blank=True)
@@ -52,6 +64,25 @@ class Payment(models.Model):
     
     def __str__(self):
         return f"Paiement {self.id} - {self.order}"
+    
+    @property
+    def transaction_id(self):
+        """Retourne l'ID de transaction approprié selon le mode de paiement"""
+        if self.payment_method == 'stripe' and self.stripe_payment_intent_id:
+            return self.stripe_payment_intent_id
+        elif self.payment_method == 'paypal' and self.paypal_order_id:
+            return self.paypal_order_id
+        elif self.payment_method == 'mobile_money' and self.mobile_money_transaction_id:
+            return self.mobile_money_transaction_id
+        return ''
+    
+    def save_gateway_response(self, response_data):
+        """Sauvegarder la réponse de la passerelle de paiement"""
+        if isinstance(response_data, dict):
+            self.payment_gateway_response = response_data
+        else:
+            self.payment_gateway_response = {'raw_response': str(response_data)}
+        self.save()
     
     def save(self, *args, **kwargs):
         if not self.confirmation_code:

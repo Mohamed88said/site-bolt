@@ -62,11 +62,28 @@ class LocationForm(forms.ModelForm):
         label=_('Instructions d\'accès'),
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
     )
+    
+    # Champs d'adresse standard pour compatibilité
+    city = forms.CharField(
+        required=False,
+        label=_('Ville'),
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    postal_code = forms.CharField(
+        required=False,
+        label=_('Code postal'),
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    country = forms.CharField(
+        required=False,
+        label=_('Pays'),
+        widget=forms.TextInput(attrs={'class': 'form-control', 'value': 'Guinée'})
+    )
 
     class Meta:
         model = LocationPoint
         fields = ['name', 'description', 'latitude', 'longitude', 'region', 'prefecture', 'commune',
-                  'address_details', 'landmark', 'access_instructions']
+                  'address_details', 'landmark', 'access_instructions', 'city', 'postal_code', 'country']
 
     def clean(self):
         cleaned_data = super().clean()

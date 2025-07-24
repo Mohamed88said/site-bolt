@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+
+{% block title %}Sélection du mode de paiement - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <h2 class="text-center mb-4">
+                <i class="fas fa-credit-card me-2"></i>Finaliser votre commande
+            </h2>
+            
+            <!-- Résumé de la commande -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-shopping-cart me-2"></i>Résumé de votre commande</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            {% for item in cart.items.all %}
+                            <div class="d-flex align-items-center mb-2">
+                                {% if item.product.main_image %}
+                                    <img src="{{ item.product.main_image.image.url }}" 
+                                         alt="{{ item.product.name }}" 
+                                         class="rounded me-3" 
+                                         style="width: 50px; height: 50px; object-fit: cover;">
+                                {% endif %}
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0">{{ item.product.name }}</h6>
+                                    <small class="text-muted">Qté: {{ item.quantity }} × {{ item.price }}€</small>
+                                </div>
+                                <strong>{{ item.total_price }}€</strong>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border-start ps-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Sous-total:</span>
+                                    <span>{{ cart.total_price }}€</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Livraison:</span>
+                                    <span>{{ shipping_cost }}€</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>TVA:</span>
+                                    <span>{{ tax_amount }}€</span>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between">
+                                    <strong>Total:</strong>
+                                    <strong>{{ total_amount }}€</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sélection du mode de paiement -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-payment me-2"></i>Choisissez votre mode de paiement</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Stripe -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 payment-option" data-method="stripe">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-credit-card fa-3x text-primary mb-3"></i>
+                                    <h5>Carte bancaire</h5>
+                                    <p class="text-muted">Paiement sécurisé par Stripe</p>
+                                    <span class="badge bg-success">Immédiat</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- PayPal -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 payment-option" data-method="paypal">
+                                <div class="card-body text-center">
+                                    <i class="fab fa-paypal fa-3x text-primary mb-3"></i>
+                                    <h5>PayPal</h5>
+                                    <p class="text-muted">Paiement via PayPal</p>
+                                    <span class="badge bg-success">Sécurisé</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Mobile Money -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 payment-option" data-method="mobile_money">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-mobile-alt fa-3x text-success mb-3"></i>
+                                    <h5>Mobile Money</h5>
+                                    <p class="text-muted">Orange Money, MTN, etc.</p>
+                                    <span class="badge bg-info">Afrique</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Paiement à la livraison -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 payment-option" data-method="cash_on_delivery">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-money-bill-wave fa-3x text-warning mb-3"></i>
+                                    <h5>À la livraison</h5>
+                                    <p class="text-muted">Payez en espèces</p>
+                                    <span class="badge bg-warning">Différé</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button id="continue-payment" class="btn btn-primary btn-lg" disabled>
+                            <i class="fas fa-arrow-right me-2"></i>Continuer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.payment-option {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid #e9ecef;
+}
+
+.payment-option:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+}
+
+.payment-option.selected {
+    border-color: var(--primary-color);
+    background-color: rgba(212, 175, 55, 0.1);
+}
+</style>
+
+<script>
+let selectedMethod = null;
+
+document.querySelectorAll('.payment-option').forEach(option => {
+    option.addEventListener('click', function() {
+        // Désélectionner toutes les options
+        document.querySelectorAll('.payment-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        
+        // Sélectionner l'option cliquée
+        this.classList.add('selected');
+        selectedMethod = this.dataset.method;
+        
+        // Activer le bouton
+        document.getElementById('continue-payment').disabled = false;
+    });
+});
+
+document.getElementById('continue-payment').addEventListener('click', function() {
+    if (selectedMethod) {
+        window.location.href = `/payments/method/${selectedMethod}/?order_id={{ order.id }}`;
+    }
+});
+</script>
+{% endblock %}

@@ -16,6 +16,47 @@ from blog.models import BlogPost
 from reviews.models import Review
 
 
+@login_required
+def seller_dashboard(request):
+    """Tableau de bord pour les vendeurs"""
+    if not request.user.is_seller:
+        messages.error(request, "Vous devez être vendeur pour accéder à cette page.")
+        return redirect('core:home')
+    
+    # Statistiques
+    from django.db.models import Sum, Count, Avg
+    from orders.models import OrderItem
+    
+    order_items = OrderItem.objects.filter(product__seller=request.user)
+    
+    stats = {
+        'total_sales': order_items.aggregate(total=Sum('total_price'))['total'] or 0,
+        'total_orders': order_items.values('order').distinct().count(),
+        'total_products': request.user.products.count(),
+        'average_rating': request.user.seller_profile.rating
+    }
+    
+    # Commandes récentes
+    recent_orders = Order.objects.filter(
+        items__product__seller=request.user
+    ).distinct().order_by('-created_at')[:10]
+    
+    # Produits en rupture de stock
+    low_stock_products = request.user.products.filter(
+        stock__lte=5, is_active=True
+    )[:5]
+    
+    # Derniers avis
+    recent_reviews = Review.objects.filter(
+        product__seller=request.user
+    ).order_by('-created_at')[:5]
+    
+    return render(request, 'accounts/seller_dashboard.html', {
+        'stats': stats,
+        'recent_orders': recent_orders,
+        'low_stock_products': low_stock_products,
+        'recent_reviews': recent_reviews
+    })
 class RegisterView(CreateView):
     model = User
     form_class = UserRegistrationForm

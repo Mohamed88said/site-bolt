@@ -115,6 +115,27 @@
                             <textarea id="addressDetails" class="form-control" rows="2" placeholder="Quartier, rue, numéro..."></textarea>
                         </div>
                         
+                        <!-- Champs d'adresse standard -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Ville</label>
+                                    <input type="text" id="city" class="form-control" placeholder="Ville">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Code postal</label>
+                                    <input type="text" id="postal_code" class="form-control" placeholder="Code postal">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Pays</label>
+                            <input type="text" id="country" class="form-control" value="Guinée">
+                        </div>
+                        
                         <!-- Point de repère -->
                         <div class="mb-3">
                             <label class="form-label">Point de repère</label>
@@ -235,6 +256,23 @@ function reverseGeocode(lat, lng) {
                     if (data.address.road) addressParts.push(data.address.road);
                     if (data.address.suburb) addressParts.push(data.address.suburb);
                     addressField.value = addressParts.join(', ');
+                }
+                
+                // Pré-remplir les champs d'adresse standard
+                if (data.address) {
+                    const cityField = document.getElementById('city');
+                    const postalField = document.getElementById('postal_code');
+                    const countryField = document.getElementById('country');
+                    
+                    if (!cityField.value && data.address.city) {
+                        cityField.value = data.address.city;
+                    }
+                    if (!postalField.value && data.address.postcode) {
+                        postalField.value = data.address.postcode;
+                    }
+                    if (!countryField.value && data.address.country) {
+                        countryField.value = data.address.country;
+                    }
                 }
             }
         })
@@ -379,6 +417,9 @@ document.getElementById('locationForm').addEventListener('submit', function(e) {
         address_details: document.getElementById('addressDetails').value,
         landmark: document.getElementById('landmark').value,
         access_instructions: document.getElementById('accessInstructions').value,
+        city: document.getElementById('city').value,
+        postal_code: document.getElementById('postal_code').value,
+        country: document.getElementById('country').value,
         label: document.getElementById('label').value,
         is_primary: document.getElementById('isPrimary').checked
     };

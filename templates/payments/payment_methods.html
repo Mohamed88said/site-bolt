@@ -1,0 +1,413 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Choisir le mode de paiement - {{ site_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.payment-method {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.payment-method:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+}
+
+.payment-method.selected {
+    border-color: var(--primary-color);
+    background-color: rgba(212, 175, 55, 0.1);
+}
+
+.payment-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+#stripe-card-element {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background: white;
+}
+
+.mobile-money-providers {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.provider-btn {
+    padding: 8px 15px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.provider-btn.selected {
+    border-color: var(--primary-color);
+    background-color: var(--primary-color);
+    color: white;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <h2 class="text-center mb-4">
+                <i class="fas fa-credit-card me-2"></i>Choisir votre mode de paiement
+            </h2>
+            
+            <div class="card">
+                <div class="card-body">
+                    <!-- Résumé de la commande -->
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-shopping-cart me-2"></i>Commande #{{ order.id|slice:":8" }}</h5>
+                        <p class="mb-1"><strong>Total à payer :</strong> {{ order.total_with_shipping }}€</p>
+                        <p class="mb-0"><strong>Articles :</strong> {{ order.items.count }} article{{ order.items.count|pluralize }}</p>
+                    </div>
+                    
+                    <!-- Méthodes de paiement -->
+                    <div id="payment-methods">
+                        <!-- Stripe (Carte bancaire) -->
+                        <div class="payment-method" data-method="stripe">
+                            <div class="row align-items-center">
+                                <div class="col-2 text-center">
+                                    <i class="fas fa-credit-card payment-icon text-primary"></i>
+                                </div>
+                                <div class="col-10">
+                                    <h5>Carte bancaire</h5>
+                                    <p class="text-muted mb-0">Paiement sécurisé par Stripe</p>
+                                    <small class="text-success">
+                                        <i class="fas fa-shield-alt me-1"></i>Paiement immédiat et sécurisé
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <div class="payment-details mt-3" style="display: none;">
+                                <div id="stripe-card-element">
+                                    <!-- Stripe Elements sera inséré ici -->
+                                </div>
+                                <div id="stripe-card-errors" role="alert" class="text-danger mt-2"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- PayPal -->
+                        <div class="payment-method" data-method="paypal">
+                            <div class="row align-items-center">
+                                <div class="col-2 text-center">
+                                    <i class="fab fa-paypal payment-icon text-primary"></i>
+                                </div>
+                                <div class="col-10">
+                                    <h5>PayPal</h5>
+                                    <p class="text-muted mb-0">Paiement via votre compte PayPal</p>
+                                    <small class="text-success">
+                                        <i class="fas fa-shield-alt me-1"></i>Protection acheteur PayPal
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <div class="payment-details mt-3" style="display: none;">
+                                <div id="paypal-button-container"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Mobile Money -->
+                        <div class="payment-method" data-method="mobile_money">
+                            <div class="row align-items-center">
+                                <div class="col-2 text-center">
+                                    <i class="fas fa-mobile-alt payment-icon text-success"></i>
+                                </div>
+                                <div class="col-10">
+                                    <h5>Mobile Money</h5>
+                                    <p class="text-muted mb-0">Orange Money, MTN Money, etc.</p>
+                                    <small class="text-info">
+                                        <i class="fas fa-info-circle me-1"></i>Disponible en Afrique de l'Ouest
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <div class="payment-details mt-3" style="display: none;">
+                                <div class="mb-3">
+                                    <label class="form-label">Fournisseur</label>
+                                    <div class="mobile-money-providers">
+                                        <div class="provider-btn" data-provider="orange">
+                                            <i class="fas fa-mobile me-1"></i>Orange Money
+                                        </div>
+                                        <div class="provider-btn" data-provider="mtn">
+                                            <i class="fas fa-mobile me-1"></i>MTN Money
+                                        </div>
+                                        <div class="provider-btn" data-provider="moov">
+                                            <i class="fas fa-mobile me-1"></i>Moov Money
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="mobile-phone" class="form-label">Numéro de téléphone</label>
+                                    <input type="tel" id="mobile-phone" class="form-control" 
+                                           placeholder="+224 XXX XXX XXX" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Paiement à la livraison -->
+                        <div class="payment-method" data-method="cash_on_delivery">
+                            <div class="row align-items-center">
+                                <div class="col-2 text-center">
+                                    <i class="fas fa-money-bill-wave payment-icon text-warning"></i>
+                                </div>
+                                <div class="col-10">
+                                    <h5>Paiement à la livraison</h5>
+                                    <p class="text-muted mb-0">Payez en espèces lors de la réception</p>
+                                    <small class="text-warning">
+                                        <i class="fas fa-clock me-1"></i>Paiement différé
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Retrait en boutique -->
+                        <div class="payment-method" data-method="store_pickup">
+                            <div class="row align-items-center">
+                                <div class="col-2 text-center">
+                                    <i class="fas fa-store payment-icon text-info"></i>
+                                </div>
+                                <div class="col-10">
+                                    <h5>Retrait en boutique</h5>
+                                    <p class="text-muted mb-0">Payez lors du retrait chez le vendeur</p>
+                                    <small class="text-info">
+                                        <i class="fas fa-map-marker-alt me-1"></i>Pas de frais de livraison
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bouton de paiement -->
+                    <div class="text-center mt-4">
+                        <button id="pay-button" class="btn btn-primary btn-lg" disabled>
+                            <i class="fas fa-lock me-2"></i>Finaliser le paiement
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://js.stripe.com/v3/"></script>
+<script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&currency=EUR"></script>
+
+<script>
+let selectedMethod = null;
+let selectedProvider = null;
+let stripe = null;
+let cardElement = null;
+
+// Initialiser Stripe
+if (typeof Stripe !== 'undefined') {
+    stripe = Stripe('{{ stripe_public_key }}');
+    const elements = stripe.elements();
+    cardElement = elements.create('card');
+}
+
+// Gestion de la sélection des méthodes de paiement
+document.querySelectorAll('.payment-method').forEach(method => {
+    method.addEventListener('click', function() {
+        // Désélectionner toutes les méthodes
+        document.querySelectorAll('.payment-method').forEach(m => {
+            m.classList.remove('selected');
+            m.querySelector('.payment-details').style.display = 'none';
+        });
+        
+        // Sélectionner la méthode cliquée
+        this.classList.add('selected');
+        this.querySelector('.payment-details').style.display = 'block';
+        selectedMethod = this.dataset.method;
+        
+        // Initialiser selon la méthode
+        if (selectedMethod === 'stripe' && cardElement) {
+            cardElement.mount('#stripe-card-element');
+        } else if (selectedMethod === 'paypal') {
+            initPayPal();
+        }
+        
+        // Activer le bouton de paiement
+        document.getElementById('pay-button').disabled = false;
+    });
+});
+
+// Gestion des fournisseurs Mobile Money
+document.querySelectorAll('.provider-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.provider-btn').forEach(b => b.classList.remove('selected'));
+        this.classList.add('selected');
+        selectedProvider = this.dataset.provider;
+    });
+});
+
+// Initialiser PayPal
+function initPayPal() {
+    if (typeof paypal !== 'undefined') {
+        paypal.Buttons({
+            createOrder: function(data, actions) {
+                return actions.order.create({
+                    purchase_units: [{
+                        amount: {
+                            value: '{{ order.total_with_shipping }}'
+                        }
+                    }]
+                });
+            },
+            onApprove: function(data, actions) {
+                return actions.order.capture().then(function(details) {
+                    // Traiter le paiement PayPal
+                    processPayPalPayment(details);
+                });
+            }
+        }).render('#paypal-button-container');
+    }
+}
+
+// Bouton de paiement principal
+document.getElementById('pay-button').addEventListener('click', function() {
+    if (!selectedMethod) {
+        alert('Veuillez sélectionner un mode de paiement');
+        return;
+    }
+    
+    switch (selectedMethod) {
+        case 'stripe':
+            processStripePayment();
+            break;
+        case 'mobile_money':
+            processMobileMoneyPayment();
+            break;
+        case 'cash_on_delivery':
+        case 'store_pickup':
+            processTraditionalPayment();
+            break;
+    }
+});
+
+// Traitement Stripe
+async function processStripePayment() {
+    if (!stripe || !cardElement) {
+        alert('Erreur: Stripe non initialisé');
+        return;
+    }
+    
+    try {
+        // Créer le PaymentIntent
+        const response = await fetch(`/payments/create-stripe/{{ order.id }}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Confirmer le paiement
+            const result = await stripe.confirmCardPayment(data.client_secret, {
+                payment_method: {
+                    card: cardElement
+                }
+            });
+            
+            if (result.error) {
+                document.getElementById('stripe-card-errors').textContent = result.error.message;
+            } else {
+                // Paiement réussi
+                window.location.href = `/payments/success/${data.payment_id}/`;
+            }
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Erreur Stripe:', error);
+        alert('Erreur lors du paiement');
+    }
+}
+
+// Traitement Mobile Money
+async function processMobileMoneyPayment() {
+    const phoneNumber = document.getElementById('mobile-phone').value;
+    
+    if (!phoneNumber || !selectedProvider) {
+        alert('Veuillez saisir votre numéro et sélectionner un fournisseur');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/payments/create-mobile-money/{{ order.id }}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                phone_number: phoneNumber,
+                provider: selectedProvider
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            // Rediriger vers une page de statut
+            window.location.href = `/payments/mobile-money-status/${data.transaction_id}/`;
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Erreur Mobile Money:', error);
+        alert('Erreur lors du paiement');
+    }
+}
+
+// Traitement PayPal
+function processPayPalPayment(details) {
+    // Le paiement PayPal est déjà traité dans onApprove
+    console.log('Paiement PayPal réussi:', details);
+    window.location.href = `/orders/{{ order.id }}/`;
+}
+
+// Traitement paiements traditionnels
+function processTraditionalPayment() {
+    // Rediriger vers la confirmation de commande
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{% url "orders:checkout" %}';
+    
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = '{{ csrf_token }}';
+    
+    const methodInput = document.createElement('input');
+    methodInput.type = 'hidden';
+    methodInput.name = 'payment_method';
+    methodInput.value = selectedMethod;
+    
+    form.appendChild(csrfInput);
+    form.appendChild(methodInput);
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
+{% endblock %}

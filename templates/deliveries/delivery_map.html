@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+
+{% block title %}Carte de livraison - {{ site_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+#deliveryMap {
+    height: 500px;
+    width: 100%;
+    border-radius: 0.5rem;
+}
+
+.delivery-info-panel {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.route-info {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.delivery-person-card {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+}
+
+.delivery-person-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+}
+
+.delivery-person-card.selected {
+    border-color: var(--primary-color);
+    background-color: rgba(212, 175, 55, 0.1);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2><i class="fas fa-map-marked-alt me-2"></i>Carte de livraison</h2>
+    <p class="text-muted">Visualisez l'itinéraire et choisissez votre livreur</p>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-map me-2"></i>Itinéraire de livraison</h5>
+                </div>
+                <div class="card-body">
+                    <div id="deliveryMap"></div>
+                </div>
+            </div>
+            
+            {% if distance_info %}
+            <div class="route-info mt-3">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <i class="fas fa-road fa-2x mb-2"></i>
+                        <h5>{{ distance_info.distance_km }} km</h5>
+                        <small>Distance</small>
+                    </div>
+                    <div class="col-4">
+                        <i class="fas fa-clock fa-2x mb-2"></i>
+                        <h5>{{ distance_info.duration_min }} min</h5>
+                        <small>Durée</small>
+                    </div>
+                    <div class="col-4">
+                        <i class="fas fa-euro-sign fa-2x mb-2"></i>
+                        <h5>{{ delivery_cost }}€</h5>
+                        <small>Coût</small>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-users me-2"></i>Livreurs disponibles</h5>
+                </div>
+                <div class="card-body delivery-info-panel">
+                    {% if delivery_persons %}
+                    {% for person_info in delivery_persons %}
+                    <div class="delivery-person-card" data-person-id="{{ person_info.person.user.id }}">
+                        <div class="d-flex align-items-center mb-2">
+                            {% if person_info.person.user.avatar %}
+                                <img src="{{ person_info.person.user.avatar.url }}" 
+                                     alt="{{ person_info.person.user.username }}" 
+                                     class="rounded-circle me-3" 
+                                     style="width: 50px; height: 50px; object-fit: cover;">
+                            {% else %}
+                                <i class="fas fa-user-circle fa-3x text-muted me-3"></i>
+                            {% endif %}
+                            <div>
+                                <h6 class="mb-0">{{ person_info.person.user.get_full_name|default:person_info.person.user.username }}</h6>
+                                <small class="text-muted">{{ person_info.person.get_vehicle_type_display }}</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <small class="text-muted">Distance</small>
+                                <br><strong>{{ person_info.distance_km }} km</strong>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted">Durée</small>
+                                <br><strong>{{ person_info.duration_min }} min</strong>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted">Note</small>
+                                <br>
+                                <div class="rating">
+                                    {% for i in "12345" %}
+                                        {% if person_info.person.rating >= i|add:0 %}
+                                            <i class="fas fa-star text-warning"></i>
+                                        {% else %}
+                                            <i class="far fa-star text-muted"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button class="btn btn-primary btn-sm w-100" 
+                                    onclick="selectDeliveryPerson({{ person_info.person.user.id }}, '{{ person_info.person.user.username }}')">
+                                <i class="fas fa-check me-2"></i>Choisir ce livreur
+                            </button>
+                        </div>
+                        
+                        {% if person_info.person.phone_number %}
+                        <div class="mt-2">
+                            <a href="tel:{{ person_info.person.phone_number }}" class="btn btn-outline-primary btn-sm w-100">
+                                <i class="fas fa-phone me-2"></i>{{ person_info.person.phone_number }}
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                        <h6>Aucun livreur disponible</h6>
+                        <p class="text-muted">Aucun livreur n'est disponible dans votre zone pour le moment.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let map;
+let routeControl;
+
+// Initialiser la carte
+function initMap() {
+    const startCoords = [{{ start_location.latitude }}, {{ start_location.longitude }}];
+    const endCoords = [{{ end_location.latitude }}, {{ end_location.longitude }}];
+    
+    // Créer la carte centrée entre les deux points
+    const centerLat = (startCoords[0] + endCoords[0]) / 2;
+    const centerLng = (startCoords[1] + endCoords[1]) / 2;
+    
+    map = L.map('deliveryMap').setView([centerLat, centerLng], 12);
+    
+    // Ajouter les tuiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Marqueur de départ (vendeur)
+    const startIcon = L.divIcon({
+        html: '<i class="fas fa-store fa-2x text-primary"></i>',
+        iconSize: [30, 30],
+        className: 'custom-div-icon'
+    });
+    
+    L.marker(startCoords, {icon: startIcon})
+        .addTo(map)
+        .bindPopup('<strong>{{ start_location.name }}</strong><br>Point de départ');
+    
+    // Marqueur d'arrivée (client)
+    const endIcon = L.divIcon({
+        html: '<i class="fas fa-home fa-2x text-success"></i>',
+        iconSize: [30, 30],
+        className: 'custom-div-icon'
+    });
+    
+    L.marker(endCoords, {icon: endIcon})
+        .addTo(map)
+        .bindPopup('<strong>{{ end_location.name }}</strong><br>Point de livraison');
+    
+    // Ajouter les livreurs sur la carte
+    {% for person_info in delivery_persons %}
+    {% if person_info.person.location_point %}
+    const deliveryIcon{{ forloop.counter }} = L.divIcon({
+        html: '<i class="fas fa-truck fa-lg text-warning"></i>',
+        iconSize: [25, 25],
+        className: 'custom-div-icon'
+    });
+    
+    L.marker([{{ person_info.person.location_point.latitude }}, {{ person_info.person.location_point.longitude }}], {
+        icon: deliveryIcon{{ forloop.counter }}
+    })
+    .addTo(map)
+    .bindPopup(`
+        <strong>{{ person_info.person.user.username }}</strong><br>
+        Distance: {{ person_info.distance_km }} km<br>
+        Durée: {{ person_info.duration_min }} min<br>
+        <button class="btn btn-primary btn-sm mt-2" onclick="selectDeliveryPerson({{ person_info.person.user.id }}, '{{ person_info.person.user.username }}')">
+            Choisir
+        </button>
+    `);
+    {% endif %}
+    {% endfor %}
+    
+    // Ajuster la vue pour inclure tous les marqueurs
+    const group = new L.featureGroup([
+        L.marker(startCoords),
+        L.marker(endCoords)
+        {% for person_info in delivery_persons %}
+        {% if person_info.person.location_point %}
+        , L.marker([{{ person_info.person.location_point.latitude }}, {{ person_info.person.location_point.longitude }}])
+        {% endif %}
+        {% endfor %}
+    ]);
+    map.fitBounds(group.getBounds().pad(0.1));
+}
+
+function selectDeliveryPerson(personId, personName) {
+    if (confirm(`Voulez-vous choisir ${personName} comme livreur ?`)) {
+        // Envoyer la sélection au serveur
+        fetch(`/deliveries/assign/${personId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                delivery_id: '{{ delivery.id }}',
+                delivery_person_id: personId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Livreur sélectionné avec succès !');
+                window.location.href = `/deliveries/{{ delivery.id }}/`;
+            } else {
+                alert('Erreur: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Erreur lors de la sélection du livreur');
+        });
+    }
+}
+
+// Initialiser la carte au chargement
+document.addEventListener('DOMContentLoaded', initMap);
+</script>
+
+<style>
+.custom-div-icon {
+    background: transparent;
+    border: none;
+}
+</style>
+{% endblock %}

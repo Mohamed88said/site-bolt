@@ -15,6 +15,7 @@ from notifications.models import Notification
 from django.utils import timezone
 from django.http import JsonResponse
 from django.contrib.auth import get_user_model
+from geolocation.distance_calculator import DistanceCalculator
 
 User = get_user_model()
 
@@ -50,6 +51,10 @@ class DeliveryDetailView(LoginRequiredMixin, DetailView):
         delivery = self.get_object()
         
         context['user_locations'] = UserLocation.objects.filter(user=delivery.order.user)
+        
+        # Ajouter les informations de distance
+        distance_info = delivery.get_distance_info()
+        context['distance_info'] = distance_info
         
         if self.request.user.is_delivery:
             context['user_request'] = DeliveryRequest.objects.filter(
@@ -218,47 +223,25 @@ def confirm_delivery_cost(request, delivery_id):
             if paid_by not in ['buyer', 'seller']:
                 messages.error(request, _('Valeur invalide pour le payeur.'))
                 return redirect('deliveries:detail', pk=delivery_id)
-                
-            delivery_request = DeliveryRequest.objects.filter(delivery=delivery, is_accepted=False).first()
-            if delivery_request:
-                delivery_request.proposed_cost = proposed_cost
-                delivery_request.save()
-                delivery.delivery_cost = proposed_cost
-                delivery.paid_by = paid_by
-                delivery.status = 'pending_confirmation'
-                delivery.save()
-                
-                Notification.objects.create(
-                    user=delivery_request.delivery_person,
-                    title=_('Mise à jour du prix de livraison'),
-                    message=f"Le vendeur a proposé un nouveau prix de {proposed_cost}€ pour la livraison #{delivery.tracking_number}, payé par {delivery.get_paid_by_display}. Veuillez confirmer.",
-                    notification_type='delivery_request',
-                    url=reverse('deliveries:request', kwargs={'delivery_id': delivery.id})
-                )
-                
-                messages.success(request, _('Prix de livraison proposé ! En attente de confirmation du livreur.'))
-            else:
-                delivery.delivery_cost = proposed_cost
-                delivery.paid_by = paid_by
-                delivery.status = 'pending_confirmation'
-                delivery.save()
-                
-                delivery_persons = DeliveryPerson.objects.filter(availability_status='available')
-                for delivery_person in delivery_persons:
-                    Notification.objects.create(
-                        user=delivery_person.user,
-                        title=_('Nouvelle proposition de livraison'),
-                        message=f"Proposition pour #{delivery.tracking_number} : {delivery.delivery_cost}€, payé par {delivery.get_paid_by_display}.",
-                        notification_type='delivery_request',
-                        url=reverse('deliveries:request', kwargs={'delivery_id': delivery.id})
-                    )
-                
-                messages.success(request, _('Prix de livraison proposé ! En attente de demande des livreurs.'))
-        except ValueError:
-            messages.error(request, _('Prix invalide.'))
+        # Utiliser le nouveau système de calcul de distance
+        delivery_location = delivery.location_point
+        if not delivery_location:
+            messages.error(request, _("Aucune localisation définie pour cette livraison."))
+            return redirect('deliveries:detail', pk=delivery_id)
         
-        return redirect('deliveries:detail', pk=delivery_id)
-    
+        # Obtenir les livreurs à proximité
+        nearby_persons = delivery_location.get_nearby_delivery_persons(radius_km=15)
+        
+        # Formater les données pour le template
+        delivery_persons = []
+        for person_info in nearby_persons:
+            person = person_info['person']
+            delivery_persons.append({
+                'person': person,
+                'distance_km': person_info['distance_km'],
+                'duration_min': person_info['duration_min'],
+                'requests': person.delivery_requests.filter(delivery=delivery)
+            })
     return render(request, 'deliveries/confirm_delivery_cost.html', {
         'delivery': delivery
     })
@@ -266,11 +249,19 @@ def confirm_delivery_cost(request, delivery_id):
 @login_required
 def start_delivery(request, delivery_id):
     delivery = get_object_or_404(Delivery, id=delivery_id, delivery_person=request.user)
+        # Calculer les informations de distance pour l'affichage
+        distance_info = delivery.get_distance_info()
+        delivery_cost = None
+        if distance_info and distance_info['success'] and delivery.delivery_zone:
+            delivery_cost = delivery.delivery_zone.calculate_delivery_cost(distance_info['distance_km'])
+        
     
     if delivery.status == 'assigned':
-        delivery.status = 'in_progress'
+            'delivery_persons': delivery_persons,
         delivery.save()
-        messages.success(request, _('Livraison démarrée !'))
+            'mapbox_api_key': settings.MAPBOX_API_KEY,
+            'distance_info': distance_info,
+            'delivery_cost': delivery_cost
     else:
         messages.error(request, _('Cette livraison ne peut pas être démarrée.'))
     
@@ -475,7 +466,52 @@ def assign_delivery_person(request, delivery_id):
         except ValueError:
             return JsonResponse({'success': False, 'message': _('Prix invalide.')}, status=400)
     
+@login_required
+def delivery_dashboard(request):
+    """Tableau de bord pour les livreurs"""
+    if not request.user.is_delivery:
+        messages.error(request, "Vous devez être livreur pour accéder à cette page.")
+        return redirect('core:home')
+    
+    # Statistiques
+    stats = {
+        'total_deliveries': request.user.deliveries.count(),
+        'completed_deliveries': request.user.deliveries.filter(status='completed').count(),
+        'average_rating': request.user.delivery_profile.rating,
+        'earnings': 0  # À calculer selon votre logique métier
+    }
+    
+    # Livraisons actives
+    active_deliveries = request.user.deliveries.filter(
+        status__in=['assigned', 'in_progress']
+    ).select_related('order')
+    
+    # Dernières évaluations
+    recent_ratings = DeliveryRating.objects.filter(
+        delivery__delivery_person=request.user
+    ).order_by('-created_at')[:5]
+    
+    return render(request, 'deliveries/delivery_dashboard.html', {
+        'stats': stats,
+        'active_deliveries': active_deliveries,
+        'recent_ratings': recent_ratings
+    })
     return JsonResponse({'success': False, 'message': _('Méthode non autorisée.')}, status=405)
+@login_required
+def toggle_availability(request):
+    """Basculer la disponibilité du livreur"""
+    if not request.user.is_delivery:
+        return redirect('core:home')
+    
+    if request.method == 'POST':
+        profile = request.user.delivery_profile
+        profile.is_available = not profile.is_available
+        profile.save()
+        
+        status = "disponible" if profile.is_available else "indisponible"
+        messages.success(request, f"Vous êtes maintenant {status} pour les livraisons.")
+    
+    return redirect('deliveries:delivery_dashboard')
 
 @login_required
 def negotiate_delivery(request, delivery_id):

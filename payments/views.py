@@ -9,6 +9,173 @@ from deliveries.models import Delivery
 from notifications.models import Notification
 from django.db.models import F
 from django.http import JsonResponse
+from .stripe_utils import StripePaymentProcessor
+from .mobile_money import MobileMoneyProcessor
+import json
+
+@login_required
+def create_stripe_payment(request, order_id):
+    """Créer un paiement Stripe"""
+    from orders.models import Order
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+    
+    if request.method == 'POST':
+        try:
+            # Créer ou récupérer le paiement
+            payment, created = Payment.objects.get_or_create(
+                order=order,
+                defaults={
+                    'payment_method': 'stripe',
+                    'amount': order.total_with_shipping,
+                    'status': 'pending'
+                }
+            )
+            
+            # Créer le PaymentIntent Stripe
+            intent = StripePaymentProcessor.create_payment_intent(
+                amount=payment.amount,
+                metadata={
+                    'order_id': str(order.id),
+                    'payment_id': str(payment.id)
+                }
+            )
+            
+            if intent:
+                payment.stripe_payment_intent_id = intent.id
+                payment.save_gateway_response(intent)
+                payment.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'client_secret': intent.client_secret,
+                    'payment_id': str(payment.id)
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Erreur lors de la création du paiement'
+                })
+                
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
+    return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})
+
+@login_required
+def create_mobile_money_payment(request, order_id):
+    """Créer un paiement Mobile Money"""
+    from orders.models import Order
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            phone_number = data.get('phone_number')
+            provider = data.get('provider', 'orange')
+            
+            if not phone_number:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Numéro de téléphone requis'
+                })
+            
+            # Créer ou récupérer le paiement
+            payment, created = Payment.objects.get_or_create(
+                order=order,
+                defaults={
+                    'payment_method': 'mobile_money',
+                    'amount': order.total_with_shipping,
+                    'status': 'pending',
+                    'mobile_money_phone': phone_number,
+                    'mobile_money_provider': provider
+                }
+            )
+            
+            # Initier le paiement Mobile Money
+            processor = MobileMoneyProcessor()
+            result = processor.initiate_payment(
+                amount=payment.amount,
+                phone_number=phone_number,
+                provider=provider,
+                reference=f"ORDER_{order.id}"
+            )
+            
+            if result and result.get('success'):
+                payment.mobile_money_transaction_id = result.get('transaction_id')
+                payment.status = 'processing'
+                payment.save_gateway_response(result)
+                payment.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'transaction_id': result.get('transaction_id'),
+                    'message': 'Paiement initié. Vérifiez votre téléphone.'
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Erreur lors de l\'initiation du paiement'
+                })
+                
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
+    return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})
+
+@login_required
+def payment_success(request, payment_id):
+    """Page de succès après paiement"""
+    payment = get_object_or_404(Payment, id=payment_id)
+    
+    # Vérifier que l'utilisateur a le droit de voir ce paiement
+    if payment.order.user != request.user:
+        messages.error(request, "Vous n'avez pas accès à ce paiement.")
+        return redirect('orders:list')
+    
+    return render(request, 'payments/success.html', {
+        'payment': payment,
+        'order': payment.order
+    })
+
+def mobile_money_callback(request):
+    """Callback pour les notifications Mobile Money"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            transaction_id = data.get('transaction_id')
+            status = data.get('status')
+            
+            if transaction_id:
+                payment = Payment.objects.filter(
+                    mobile_money_transaction_id=transaction_id
+                ).first()
+                
+                if payment:
+                    if status == 'success':
+                        payment.status = 'completed'
+                        payment.confirmed_at = timezone.now()
+                        payment.order.payment_status = 'completed'
+                        payment.order.save()
+                    elif status == 'failed':
+                        payment.status = 'failed'
+                    
+                    payment.save_gateway_response(data)
+                    payment.save()
+                    
+                    return JsonResponse({'success': True})
+            
+            return JsonResponse({'success': False, 'error': 'Transaction non trouvée'})
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})
 
 @login_required
 def confirm_payment(request, payment_id):

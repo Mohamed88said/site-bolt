@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Informations de distance - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-route me-2"></i>Informations de distance et livraison</h5>
+                </div>
+                <div class="card-body">
+                    {% if distance_info %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-map-marker-alt me-2"></i>Point de départ</h6>
+                            <p><strong>{{ start_location.name }}</strong></p>
+                            <p>{{ start_location.full_address }}</p>
+                            <small class="text-muted">{{ start_location.latitude }}, {{ start_location.longitude }}</small>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-flag-checkered me-2"></i>Point d'arrivée</h6>
+                            <p><strong>{{ end_location.name }}</strong></p>
+                            <p>{{ end_location.full_address }}</p>
+                            <small class="text-muted">{{ end_location.latitude }}, {{ end_location.longitude }}</small>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <i class="fas fa-road fa-2x mb-2"></i>
+                                    <h4>{{ distance_info.distance_km }} km</h4>
+                                    <p class="mb-0">Distance</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-info text-white">
+                                <div class="card-body">
+                                    <i class="fas fa-clock fa-2x mb-2"></i>
+                                    <h4>{{ distance_info.duration_min }} min</h4>
+                                    <p class="mb-0">Durée estimée</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <i class="fas fa-euro-sign fa-2x mb-2"></i>
+                                    <h4>{{ delivery_cost }}€</h4>
+                                    <p class="mb-0">Coût de livraison</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if distance_info.fallback %}
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Note :</strong> Distance calculée à vol d'oiseau (service de routage indisponible).
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-4">
+                        <h6>Détails du calcul</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success me-2"></i>Coût de base : {{ base_cost }}€</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Distance : {{ distance_info.distance_km }} km</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Coût par km : {{ cost_per_km }}€</li>
+                            <li><i class="fas fa-calculator text-primary me-2"></i>Total : {{ delivery_cost }}€</li>
+                        </ul>
+                    </div>
+                    
+                    {% else %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Impossible de calculer la distance. Vérifiez les coordonnées GPS.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

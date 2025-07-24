@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
 from geopy.geocoders import Nominatim
+from .distance_calculator import DistanceCalculator
+from decimal import Decimal
 
 User = get_user_model()
 
@@ -105,6 +107,42 @@ class LocationPoint(models.Model):
             parts.append(self.country)
         return ", ".join(parts) or "Adresse non définie"
 
+    def calculate_distance_to(self, other_location):
+        """Calcule la distance vers un autre point"""
+        if not other_location or not all([
+            self.latitude, self.longitude, 
+            other_location.latitude, other_location.longitude
+        ]):
+            return None
+        
+        return DistanceCalculator.get_best_distance(
+            float(self.latitude), float(self.longitude),
+            float(other_location.latitude), float(other_location.longitude)
+        )
+    
+    def get_nearby_delivery_persons(self, radius_km=10):
+        """Trouve les livreurs dans un rayon donné"""
+        from deliveries.models import DeliveryPerson
+        
+        nearby_persons = []
+        delivery_persons = DeliveryPerson.objects.filter(
+            availability_status='available',
+            location_point__isnull=False
+        ).select_related('user', 'location_point')
+        
+        for person in delivery_persons:
+            distance_info = self.calculate_distance_to(person.location_point)
+            if distance_info and distance_info['success']:
+                if distance_info['distance_km'] <= radius_km:
+                    nearby_persons.append({
+                        'person': person,
+                        'distance_km': distance_info['distance_km'],
+                        'duration_min': distance_info['duration_min']
+                    })
+        
+        # Trier par distance
+        nearby_persons.sort(key=lambda x: x['distance_km'])
+        return nearby_persons
     @classmethod
     def geocode_address(cls, address, city, country):
         geolocator = Nominatim(user_agent="ecommerce_app")
@@ -171,6 +209,7 @@ class DeliveryZone(models.Model):
     cost_per_km = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name=_('Coût par km'))
     free_delivery_threshold = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name=_('Seuil livraison gratuite'))
     estimated_delivery_days = models.IntegerField(default=1, verbose_name=_('Délai estimé (jours)'))
+    max_distance_km = models.IntegerField(default=50, verbose_name=_('Distance maximale (km)'))
     is_active = models.BooleanField(default=True, verbose_name=_('Actif'))
     
     class Meta:
@@ -179,3 +218,30 @@ class DeliveryZone(models.Model):
     
     def __str__(self):
         return self.name
+    
+    def calculate_delivery_cost(self, distance_km):
+        """Calcule le coût de livraison pour cette zone"""
+        if distance_km > self.max_distance_km:
+            return None  # Hors zone
+        
+        total_cost = float(self.base_delivery_cost) + (distance_km * float(self.cost_per_km))
+        return Decimal(str(round(total_cost, 2)))
+    
+    def is_location_in_zone(self, location_point):
+        """Vérifie si un point est dans cette zone"""
+        if not location_point:
+            return False
+        
+        # Vérifier par commune d'abord (plus précis)
+        if location_point.commune and self.communes.filter(id=location_point.commune.id).exists():
+            return True
+        
+        # Puis par préfecture
+        if location_point.prefecture and self.prefectures.filter(id=location_point.prefecture.id).exists():
+            return True
+        
+        # Enfin par région
+        if location_point.region and self.regions.filter(id=location_point.region.id).exists():
+            return True
+        
+        return False
