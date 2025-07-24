@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+
+{% block title %}Analytiques produit - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-chart-bar me-2"></i>{{ product.name }}</h2>
+            <p class="text-muted">Analytiques détaillées du produit</p>
+        </div>
+        <div>
+            <a href="{% url 'products:edit_product' product.slug %}" class="btn btn-outline-primary">
+                <i class="fas fa-edit me-1"></i>Modifier
+            </a>
+        </div>
+    </div>
+    
+    <!-- Métriques du produit -->
+    <div class="row mb-4">
+        <div class="col-lg-2 col-md-4 col-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-eye fa-2x text-primary mb-2"></i>
+                    <h4>{{ product.views|intcomma }}</h4>
+                    <small class="text-muted">Vues</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-2 col-md-4 col-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-shopping-cart fa-2x text-success mb-2"></i>
+                    <h4>{{ analytics.total_sold|default:0 }}</h4>
+                    <small class="text-muted">Vendus</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-2 col-md-4 col-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-euro-sign fa-2x text-warning mb-2"></i>
+                    <h4>{{ analytics.revenue|floatformat:0|intcomma }}</h4>
+                    <small class="text-muted">Revenus (GNF)</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-2 col-md-4 col-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-percentage fa-2x text-info mb-2"></i>
+                    <h4>{{ analytics.conversion_rate|floatformat:1 }}%</h4>
+                    <small class="text-muted">Conversion</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-2 col-md-4 col-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-star fa-2x text-warning mb-2"></i>
+                    <h4>{{ product.rating|floatformat:1 }}</h4>
+                    <small class="text-muted">Note moyenne</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-2 col-md-4 col-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-boxes fa-2x text-danger mb-2"></i>
+                    <h4>{{ product.stock }}</h4>
+                    <small class="text-muted">Stock restant</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Graphiques -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-line me-2"></i>Ventes dans le temps</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="salesTimeChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-map-marker-alt me-2"></i>Ventes par région</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="regionSalesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Avis récents -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-comments me-2"></i>Avis récents</h5>
+                </div>
+                <div class="card-body">
+                    {% for review in recent_reviews %}
+                    <div class="d-flex align-items-start mb-3 p-3 border rounded">
+                        {% if review.user.avatar %}
+                            <img src="{{ review.user.avatar.url }}" class="rounded-circle me-3" style="width: 40px; height: 40px;">
+                        {% else %}
+                            <i class="fas fa-user-circle fa-2x text-muted me-3"></i>
+                        {% endif %}
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong>{{ review.user.get_full_name|default:review.user.username }}</strong>
+                                <div class="rating">
+                                    {% for i in "12345" %}
+                                        {% if review.rating >= i|add:0 %}
+                                            <i class="fas fa-star text-warning"></i>
+                                        {% else %}
+                                            <i class="far fa-star text-muted"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% if review.title %}
+                                <h6>{{ review.title }}</h6>
+                            {% endif %}
+                            <p class="mb-1">{{ review.comment }}</p>
+                            <small class="text-muted">{{ review.created_at|date:"d/m/Y à H:i" }}</small>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center">Aucun avis pour ce produit</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Données des graphiques
+const salesTimeData = {{ sales_time_data|safe }};
+const regionSalesData = {{ region_sales_data|safe }};
+
+// Graphique des ventes dans le temps
+const salesTimeCtx = document.getElementById('salesTimeChart').getContext('2d');
+new Chart(salesTimeCtx, {
+    type: 'line',
+    data: {
+        labels: salesTimeData.labels,
+        datasets: [{
+            label: 'Ventes',
+            data: salesTimeData.sales,
+            borderColor: '#D4AF37',
+            backgroundColor: 'rgba(212, 175, 55, 0.1)',
+            tension: 0.4,
+            fill: true
+        }, {
+            label: 'Vues',
+            data: salesTimeData.views,
+            borderColor: '#FF6B35',
+            backgroundColor: 'rgba(255, 107, 53, 0.1)',
+            tension: 0.4,
+            fill: false,
+            yAxisID: 'y1'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                grid: {
+                    drawOnChartArea: false,
+                },
+            }
+        }
+    }
+});
+
+// Graphique des ventes par région
+const regionSalesCtx = document.getElementById('regionSalesChart').getContext('2d');
+new Chart(regionSalesCtx, {
+    type: 'doughnut',
+    data: {
+        labels: regionSalesData.labels,
+        datasets: [{
+            data: regionSalesData.values,
+            backgroundColor: [
+                '#D4AF37', '#FF6B35', '#228B22', '#4682B4',
+                '#DC143C', '#FFD700', '#8B4513', '#9370DB'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+</script>
+{% endblock %}

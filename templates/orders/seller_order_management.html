@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des commandes - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-clipboard-list me-2"></i>Gestion des commandes</h2>
+        <div class="d-flex gap-2">
+            <select class="form-select" id="status-filter" onchange="filterOrders()">
+                <option value="">Tous les statuts</option>
+                <option value="pending">En attente</option>
+                <option value="confirmed">Confirmées</option>
+                <option value="processing">En traitement</option>
+                <option value="shipped">Expédiées</option>
+                <option value="delivered">Livrées</option>
+            </select>
+            <button class="btn btn-outline-primary" onclick="refreshOrders()">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Statistiques rapides -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h3>{{ stats.pending_orders }}</h3>
+                    <p class="mb-0">En attente</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>{{ stats.processing_orders }}</h3>
+                    <p class="mb-0">En traitement</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ stats.shipped_orders }}</h3>
+                    <p class="mb-0">Expédiées</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>{{ stats.delivered_orders }}</h3>
+                    <p class="mb-0">Livrées</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Liste des commandes -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Commande</th>
+                            <th>Client</th>
+                            <th>Produits</th>
+                            <th>Total</th>
+                            <th>Statut</th>
+                            <th>Livraison</th>
+                            <th>Paiement</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr data-status="{{ order.status }}">
+                            <td>
+                                <strong>#{{ order.id|slice:":8" }}</strong>
+                                {% if order.delivery %}
+                                    <br><small class="text-muted">{{ order.delivery.tracking_number }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if order.user.avatar %}
+                                        <img src="{{ order.user.avatar.url }}" class="rounded-circle me-2" style="width: 30px; height: 30px;">
+                                    {% else %}
+                                        <i class="fas fa-user-circle fa-lg me-2"></i>
+                                    {% endif %}
+                                    <div>
+                                        <strong>{{ order.user.get_full_name|default:order.user.username }}</strong>
+                                        <br><small class="text-muted">{{ order.user.email }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <small>{{ order.items.count }} article{{ order.items.count|pluralize }}</small>
+                                <br>
+                                {% for item in order.items.all|slice:":2" %}
+                                    <small class="text-muted">{{ item.product.name|truncatechars:20 }}</small>
+                                    {% if not forloop.last %}<br>{% endif %}
+                                {% endfor %}
+                                {% if order.items.count > 2 %}
+                                    <br><small class="text-muted">+{{ order.items.count|add:"-2" }} autre{{ order.items.count|add:"-2"|pluralize }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ order.total_with_shipping|floatformat:0 }} GNF</strong>
+                                <br><small class="text-muted">{{ order.total_amount|floatformat:0 }} + {{ order.shipping_cost|floatformat:0 }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if order.status == 'delivered' %}success{% elif order.status == 'cancelled' %}danger{% elif order.status == 'shipped' %}info{% elif order.status == 'processing' %}warning{% else %}secondary{% endif %}">
+                                    {{ order.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if order.delivery %}
+                                    {% if order.delivery.delivery_person %}
+                                        <small><strong>{{ order.delivery.delivery_person.username }}</strong></small>
+                                        <br><small class="text-muted">{{ order.delivery.delivery_cost|floatformat:0 }} GNF</small>
+                                    {% else %}
+                                        <span class="badge bg-warning">Non assignée</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-secondary">Aucune</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if order.payment_status == 'completed' %}success{% elif order.payment_status == 'failed' %}danger{% else %}warning{% endif %}">
+                                    {{ order.get_payment_status_display }}
+                                </span>
+                                {% if order.payment and order.payment.qr_code_image %}
+                                    <br><small class="text-success"><i class="fas fa-qrcode"></i> QR disponible</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ order.created_at|date:"d/m/Y" }}</small>
+                                <br><small class="text-muted">{{ order.created_at|time:"H:i" }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group-vertical btn-group-sm">
+                                    <a href="{% url 'orders:detail' order.pk %}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if order.delivery and order.payment and order.payment.qr_code_image %}
+                                        <a href="{% url 'payments:qr_code_share' order.payment.id %}" class="btn btn-outline-success btn-sm">
+                                            <i class="fas fa-qrcode"></i>
+                                        </a>
+                                    {% endif %}
+                                    {% if order.delivery and not order.delivery.delivery_person %}
+                                        <a href="{% url 'geolocation:delivery_person_map' delivery_id=order.delivery.id %}" class="btn btn-outline-warning btn-sm">
+                                            <i class="fas fa-truck"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-4">
+                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                <h5>Aucune commande</h5>
+                                <p class="text-muted">Vous n'avez pas encore reçu de commandes.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterOrders() {
+    const filter = document.getElementById('status-filter').value;
+    const rows = document.querySelectorAll('tbody tr[data-status]');
+    
+    rows.forEach(row => {
+        if (!filter || row.dataset.status === filter) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function refreshOrders() {
+    window.location.reload();
+}
+</script>
+{% endblock %}

@@ -12,6 +12,119 @@ from django.http import JsonResponse
 from .stripe_utils import StripePaymentProcessor
 from .mobile_money import MobileMoneyProcessor
 import json
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+@csrf_exempt
+def qr_scan_payment(request, payment_id):
+    """Vue appelée quand le QR code est scanné par l'acheteur"""
+    payment = get_object_or_404(Payment, id=payment_id)
+    order = payment.order
+    delivery = getattr(order, 'delivery', None)
+    
+    if payment.status not in ['pending', 'awaiting_scan']:
+        return render(request, 'payments/qr_scan_error.html', {
+            'error': 'Ce paiement a déjà été traité ou est expiré.',
+            'payment': payment
+        })
+    
+    # Marquer comme scanné
+    payment.status = 'scanned_pending_payment'
+    payment.save()
+    
+    # Déterminer qui paie la livraison
+    delivery_paid_by_buyer = True
+    if delivery:
+        delivery_paid_by_buyer = delivery.paid_by == 'buyer'
+        # Vérifier si le vendeur prend en charge la livraison pour ses produits
+        for item in order.items.all():
+            if item.product.seller_pays_delivery:
+                delivery_paid_by_buyer = False
+                delivery.paid_by = 'seller'
+                delivery.save()
+                break
+    
+    context = {
+        'payment': payment,
+        'order': order,
+        'delivery': delivery,
+        'delivery_paid_by_buyer': delivery_paid_by_buyer,
+        'total_amount': payment.amount,
+        'delivery_cost': delivery.delivery_cost if delivery else 0,
+        'product_total': order.total_amount,
+        'is_guinea': True,  # Spécifique à la Guinée
+        'available_methods': [
+            {'key': 'stripe', 'name': 'Carte bancaire', 'icon': 'fas fa-credit-card'},
+            {'key': 'paypal', 'name': 'PayPal', 'icon': 'fab fa-paypal'},
+            {'key': 'mobile_money', 'name': 'Mobile Money', 'icon': 'fas fa-mobile-alt'},
+            {'key': 'cash', 'name': 'Espèces', 'icon': 'fas fa-money-bill-wave'},
+        ]
+    }
+    
+    return render(request, 'payments/qr_scan_payment.html', context)
+
+@login_required
+def process_qr_payment(request, payment_id):
+    """Traiter le paiement après scan du QR code"""
+    payment = get_object_or_404(Payment, id=payment_id)
+    
+    if payment.status != 'scanned_pending_payment':
+        return JsonResponse({'success': False, 'error': 'Paiement non valide'})
+    
+    if request.method == 'POST':
+        payment_method = request.POST.get('payment_method')
+        confirmation_code = request.POST.get('confirmation_code')
+        
+        # Vérifier le code de confirmation
+        if confirmation_code != payment.confirmation_code:
+            payment.confirmation_attempts += 1
+            payment.save()
+            return JsonResponse({
+                'success': False, 
+                'error': f'Code incorrect. Tentatives restantes: {3 - payment.confirmation_attempts}'
+            })
+        
+        if payment_method == 'cash':
+            # Paiement en espèces - confirmer immédiatement
+            payment.status = 'completed'
+            payment.payment_method = 'cash_on_delivery'
+            payment.confirmed_at = timezone.now()
+            payment.save()
+            
+            # Mettre à jour la commande
+            payment.order.payment_status = 'completed'
+            payment.order.status = 'delivered'
+            payment.order.save()
+            
+            return JsonResponse({
+                'success': True, 
+                'message': 'Paiement en espèces confirmé',
+                'redirect_url': reverse('orders:detail', kwargs={'pk': payment.order.id})
+            })
+        
+        elif payment_method in ['stripe', 'paypal', 'mobile_money']:
+            # Rediriger vers le processeur de paiement approprié
+            payment.payment_method = payment_method
+            payment.status = 'processing'
+            payment.save()
+            
+            if payment_method == 'stripe':
+                return JsonResponse({
+                    'success': True,
+                    'redirect_url': reverse('payments:create_stripe_payment', kwargs={'order_id': payment.order.id})
+                })
+            elif payment_method == 'paypal':
+                return JsonResponse({
+                    'success': True,
+                    'redirect_url': reverse('payments:create_paypal_payment', kwargs={'order_id': payment.order.id})
+                })
+            elif payment_method == 'mobile_money':
+                return JsonResponse({
+                    'success': True,
+                    'redirect_url': reverse('payments:create_mobile_money_payment', kwargs={'order_id': payment.order.id})
+                })
+    
+    return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})
 
 @login_required
 def create_stripe_payment(request, order_id):

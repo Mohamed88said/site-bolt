@@ -4,7 +4,10 @@ from . import views
 app_name = 'payments'
 
 urlpatterns = [
+    path('qr-scan/<uuid:payment_id>/', views.qr_scan_payment, name='qr_scan_payment'),
+    path('process-qr/<uuid:payment_id>/', views.process_qr_payment, name='process_qr_payment'),
     path('create-stripe/<uuid:order_id>/', views.create_stripe_payment, name='create_stripe_payment'),
+    path('create-paypal/<uuid:order_id>/', views.create_paypal_payment, name='create_paypal_payment'),
     path('create-mobile-money/<uuid:order_id>/', views.create_mobile_money_payment, name='create_mobile_money_payment'),
     path('success/<uuid:payment_id>/', views.payment_success, name='payment_success'),
     path('mobile-money/callback/', views.mobile_money_callback, name='mobile_money_callback'),

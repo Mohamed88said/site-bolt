@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block title %}Groupes communautaires - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-users me-2"></i>Groupes d'achat communautaires</h2>
+                    <p class="text-muted">Achetez ensemble et économisez plus !</p>
+                </div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createGroupModal">
+                    <i class="fas fa-plus me-2"></i>Créer un groupe
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mes groupes -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4>Mes groupes</h4>
+            <div class="row">
+                {% for membership in user_groups %}
+                <div class="col-lg-4 col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6>{{ membership.group.name }}</h6>
+                                <span class="badge bg-primary">{{ membership.get_role_display }}</span>
+                            </div>
+                            <p class="text-muted small">{{ membership.group.description|truncatewords:15 }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-users me-1"></i>{{ membership.group.members.count }} membres
+                                </small>
+                                <small class="text-success">
+                                    <i class="fas fa-percentage me-1"></i>{{ membership.group.group_discount_percentage }}% de réduction
+                                </small>
+                            </div>
+                            <a href="{% url 'community:group_detail' membership.group.id %}" class="btn btn-outline-primary btn-sm w-100 mt-2">
+                                Voir le groupe
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Groupes disponibles -->
+    <div class="row">
+        <div class="col-12">
+            <h4>Groupes disponibles dans votre région</h4>
+            <div class="row">
+                {% for group in available_groups %}
+                <div class="col-lg-4 col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6>{{ group.name }}</h6>
+                            <p class="text-muted small">{{ group.description|truncatewords:15 }}</p>
+                            
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">Membres</small>
+                                    <small><strong>{{ group.members.count }}/{{ group.min_members_for_discount }}</strong></small>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar" style="width: {{ group.members.count|div:group.min_members_for_discount|mul:100 }}%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small class="text-muted">Région</small>
+                                <small><strong>{{ group.region.name }}</strong></small>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <small class="text-muted">Réduction</small>
+                                <small class="text-success"><strong>{{ group.group_discount_percentage }}%</strong></small>
+                            </div>
+                            
+                            <button class="btn btn-success btn-sm w-100" onclick="joinGroup({{ group.id }})">
+                                <i class="fas fa-user-plus me-1"></i>Rejoindre
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal création de groupe -->
+<div class="modal fade" id="createGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Créer un groupe d'achat</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="create-group-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Nom du groupe</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Région</label>
+                        <select class="form-select" name="region" required>
+                            {% for region in regions %}
+                            <option value="{{ region.id }}">{{ region.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nombre minimum de membres pour la réduction</label>
+                        <input type="number" class="form-control" name="min_members" value="5" min="3" max="50" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Pourcentage de réduction (%)</label>
+                        <input type="number" class="form-control" name="discount" value="10" min="5" max="30" step="0.1" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="createGroup()">Créer le groupe</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function joinGroup(groupId) {
+    if (confirm('Voulez-vous rejoindre ce groupe d\'achat ?')) {
+        fetch(`/community/join-group/${groupId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Vous avez rejoint le groupe !');
+                location.reload();
+            } else {
+                alert('Erreur: ' + data.error);
+            }
+        });
+    }
+}
+
+function createGroup() {
+    const form = document.getElementById('create-group-form');
+    const formData = new FormData(form);
+    
+    fetch('/community/create-group/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Groupe créé avec succès !');
+            location.reload();
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    });
+}
+</script>
+{% endblock %}

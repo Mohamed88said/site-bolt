@@ -22,10 +22,12 @@ class Payment(models.Model):
         ('mobile_money', _('Mobile Money')),
         ('cash_on_delivery', _('Paiement à la livraison')),
         ('store_pickup', _('Retrait en boutique')),
+        ('qr_scan', _('Scan QR Code')),
     ]
     
     STATUS_CHOICES = [
         ('pending', _('En attente')),
+        ('awaiting_scan', _('En attente de scan QR')),
         ('processing', _('En cours')),
         ('completed', _('Terminé')),
         ('failed', _('Échoué')),
@@ -34,6 +36,7 @@ class Payment(models.Model):
         ('pending_delivery_confirmation', _('En attente de confirmation du livreur')),
         ('requires_action', _('Action requise')),
         ('requires_payment_method', _('Méthode de paiement requise')),
+        ('scanned_pending_payment', _('QR scanné - En attente de paiement')),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -102,7 +105,7 @@ class Payment(models.Model):
     
     def generate_qr_code_data(self):
         """Générer les données pour le QR code"""
-        return f"ORDER:{self.order.id}|CODE:{self.confirmation_code}|AMOUNT:{self.amount}|URL:{self.get_confirmation_url()}"
+        return f"ORDER:{self.order.id}|PAYMENT:{self.id}|CODE:{self.confirmation_code}|AMOUNT:{self.amount}|DELIVERY_COST:{self.order.delivery.delivery_cost if hasattr(self.order, 'delivery') else 0}|PAID_BY:{self.order.delivery.paid_by if hasattr(self.order, 'delivery') else 'buyer'}"
     
     def generate_qr_code_image(self):
         """Générer et sauvegarder l'image QR code"""
@@ -125,7 +128,14 @@ class Payment(models.Model):
     def get_confirmation_url(self):
         """Générer l'URL pour la page de confirmation"""
         from django.urls import reverse
-        return reverse('payments:confirm_payment', kwargs={'payment_id': self.id})
+        return reverse('payments:qr_scan_payment', kwargs={'payment_id': self.id})
+    
+    @property
+    def qr_scan_url(self):
+        """URL pour scanner le QR code"""
+        from django.urls import reverse
+        from django.conf import settings
+        return f"{settings.SITE_URL}{reverse('payments:qr_scan_payment', kwargs={'payment_id': self.id})}"
 
 class PaymentConfirmation(models.Model):
     payment = models.ForeignKey(Payment, on_delete=models.CASCADE, related_name='confirmations')

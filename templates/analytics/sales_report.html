@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Rapport de ventes - {{ site_name }}{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.metric-card {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 50%;
+    background: var(--pattern-primary);
+    opacity: 0.1;
+}
+
+.chart-container {
+    position: relative;
+    height: 400px;
+    margin-bottom: 30px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-chart-line me-2"></i>Rapport de ventes</h2>
+        <div class="d-flex gap-2">
+            <select class="form-select" id="period-filter">
+                <option value="7">7 derniers jours</option>
+                <option value="30" selected>30 derniers jours</option>
+                <option value="90">90 derniers jours</option>
+                <option value="365">1 an</option>
+            </select>
+            <button class="btn btn-outline-primary" onclick="exportReport()">
+                <i class="fas fa-download me-1"></i>Exporter
+            </button>
+        </div>
+    </div>
+    
+    <!-- Métriques principales -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ metrics.total_sales|floatformat:0|intcomma }} GNF</h3>
+                        <p class="mb-0">Chiffre d'affaires</p>
+                        <small class="opacity-75">
+                            {% if metrics.sales_growth > 0 %}
+                                <i class="fas fa-arrow-up"></i> +{{ metrics.sales_growth }}%
+                            {% else %}
+                                <i class="fas fa-arrow-down"></i> {{ metrics.sales_growth }}%
+                            {% endif %}
+                        </small>
+                    </div>
+                    <i class="fas fa-chart-line fa-3x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="metric-card" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ metrics.total_orders|intcomma }}</h3>
+                        <p class="mb-0">Commandes</p>
+                        <small class="opacity-75">
+                            {% if metrics.orders_growth > 0 %}
+                                <i class="fas fa-arrow-up"></i> +{{ metrics.orders_growth }}%
+                            {% else %}
+                                <i class="fas fa-arrow-down"></i> {{ metrics.orders_growth }}%
+                            {% endif %}
+                        </small>
+                    </div>
+                    <i class="fas fa-shopping-bag fa-3x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="metric-card" style="background: linear-gradient(135deg, #17a2b8, #6f42c1);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ metrics.avg_order_value|floatformat:0|intcomma }} GNF</h3>
+                        <p class="mb-0">Panier moyen</p>
+                        <small class="opacity-75">
+                            {% if metrics.aov_growth > 0 %}
+                                <i class="fas fa-arrow-up"></i> +{{ metrics.aov_growth }}%
+                            {% else %}
+                                <i class="fas fa-arrow-down"></i> {{ metrics.aov_growth }}%
+                            {% endif %}
+                        </small>
+                    </div>
+                    <i class="fas fa-calculator fa-3x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="metric-card" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ metrics.conversion_rate|floatformat:1 }}%</h3>
+                        <p class="mb-0">Taux de conversion</p>
+                        <small class="opacity-75">
+                            {% if metrics.conversion_growth > 0 %}
+                                <i class="fas fa-arrow-up"></i> +{{ metrics.conversion_growth }}%
+                            {% else %}
+                                <i class="fas fa-arrow-down"></i> {{ metrics.conversion_growth }}%
+                            {% endif %}
+                        </small>
+                    </div>
+                    <i class="fas fa-percentage fa-3x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Graphiques -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-area me-2"></i>Évolution des ventes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-pie me-2"></i>Répartition par région</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="regionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top produits et clients -->
+    <div class="row mt-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-trophy me-2"></i>Produits les plus vendus</h5>
+                </div>
+                <div class="card-body">
+                    {% for product in top_products %}
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="me-3">
+                            <span class="badge bg-primary rounded-circle" style="width: 30px; height: 30px; line-height: 20px;">
+                                {{ forloop.counter }}
+                            </span>
+                        </div>
+                        {% if product.main_image %}
+                            <img src="{{ product.main_image.image.url }}" class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                        {% endif %}
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0">{{ product.name|truncatechars:30 }}</h6>
+                            <small class="text-muted">{{ product.total_sold }} vendus - {{ product.revenue|floatformat:0 }} GNF</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-users me-2"></i>Meilleurs clients</h5>
+                </div>
+                <div class="card-body">
+                    {% for customer in top_customers %}
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="me-3">
+                            <span class="badge bg-success rounded-circle" style="width: 30px; height: 30px; line-height: 20px;">
+                                {{ forloop.counter }}
+                            </span>
+                        </div>
+                        {% if customer.avatar %}
+                            <img src="{{ customer.avatar.url }}" class="rounded-circle me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                        {% else %}
+                            <i class="fas fa-user-circle fa-3x text-muted me-3"></i>
+                        {% endif %}
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0">{{ customer.get_full_name|default:customer.username }}</h6>
+                            <small class="text-muted">{{ customer.total_orders }} commandes - {{ customer.total_spent|floatformat:0 }} GNF</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Données pour les graphiques
+const salesData = {{ sales_chart_data|safe }};
+const regionData = {{ region_chart_data|safe }};
+
+// Graphique des ventes
+const salesCtx = document.getElementById('salesChart').getContext('2d');
+new Chart(salesCtx, {
+    type: 'line',
+    data: {
+        labels: salesData.labels,
+        datasets: [{
+            label: 'Ventes (GNF)',
+            data: salesData.values,
+            borderColor: 'rgb(212, 175, 55)',
+            backgroundColor: 'rgba(212, 175, 55, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return value.toLocaleString() + ' GNF';
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Graphique des régions
+const regionCtx = document.getElementById('regionChart').getContext('2d');
+new Chart(regionCtx, {
+    type: 'doughnut',
+    data: {
+        labels: regionData.labels,
+        datasets: [{
+            data: regionData.values,
+            backgroundColor: [
+                '#D4AF37', '#FF6B35', '#228B22', '#4682B4',
+                '#DC143C', '#FFD700', '#8B4513', '#9370DB'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+function exportReport() {
+    window.open('/analytics/export-report/', '_blank');
+}
+</script>
+{% endblock %}

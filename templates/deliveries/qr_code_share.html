@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}Partager le QR Code - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4><i class="fas fa-qrcode me-2"></i>QR Code de paiement - Livraison #{{ delivery.tracking_number }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 text-center">
+                            <h5>QR Code à scanner</h5>
+                            {% if payment.qr_code_image %}
+                                <img src="{{ payment.qr_code_image.url }}" alt="QR Code" class="img-fluid mb-3" style="max-width: 250px;">
+                            {% endif %}
+                            <p><strong>Code de confirmation :</strong> <span class="badge bg-primary fs-6">{{ payment.confirmation_code }}</span></p>
+                            
+                            <div class="mt-3">
+                                <button class="btn btn-success me-2" onclick="downloadQR()">
+                                    <i class="fas fa-download me-1"></i>Télécharger
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="shareQR()">
+                                    <i class="fas fa-share me-1"></i>Partager
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5>Instructions pour le livreur</h5>
+                            <div class="alert alert-info">
+                                <ol class="mb-0">
+                                    <li>Présentez ce QR code à l'acheteur</li>
+                                    <li>L'acheteur scanne avec son téléphone</li>
+                                    <li>Il choisit son mode de paiement</li>
+                                    <li>Il entre le code de confirmation</li>
+                                    <li>Le paiement est finalisé</li>
+                                </ol>
+                            </div>
+                            
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6>Détails de la livraison</h6>
+                                    <p><strong>Montant total :</strong> {{ payment.amount|floatformat:0 }} GNF</p>
+                                    <p><strong>Livraison :</strong> {{ delivery.delivery_cost|floatformat:0 }} GNF</p>
+                                    <p><strong>Payé par :</strong> {{ delivery.get_paid_by_display }}</p>
+                                    <p><strong>Adresse :</strong> {{ delivery.order.shipping_address }}</p>
+                                    {% if delivery.order.shipping_phone %}
+                                    <p><strong>Téléphone client :</strong> 
+                                        <a href="tel:{{ delivery.order.shipping_phone }}">{{ delivery.order.shipping_phone }}</a>
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Envoyer au livreur</h6>
+                            {% if delivery.delivery_person %}
+                                <form method="post" action="{% url 'deliveries:share_qr_code' delivery.id %}">
+                                    {% csrf_token %}
+                                    <div class="d-flex align-items-center mb-3">
+                                        <i class="fas fa-user-circle fa-2x me-3"></i>
+                                        <div>
+                                            <strong>{{ delivery.delivery_person.get_full_name|default:delivery.delivery_person.username }}</strong>
+                                            <br><small class="text-muted">{{ delivery.delivery_person.email }}</small>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-envelope me-2"></i>Envoyer par email
+                                    </button>
+                                </form>
+                            {% else %}
+                                <p class="text-muted">Aucun livreur assigné</p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6>Lien de paiement direct</h6>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="payment-link" 
+                                       value="{{ payment.qr_scan_url }}" readonly>
+                                <button class="btn btn-outline-secondary" onclick="copyLink()">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">Partagez ce lien avec l'acheteur</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <a href="{% url 'deliveries:detail' delivery.id %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Retour à la livraison
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function downloadQR() {
+    const link = document.createElement('a');
+    link.href = '{{ payment.qr_code_image.url }}';
+    link.download = 'qr_code_commande_{{ order.id|slice:":8" }}.png';
+    link.click();
+}
+
+function shareQR() {
+    if (navigator.share) {
+        navigator.share({
+            title: 'QR Code de paiement',
+            text: 'Scannez ce QR code pour finaliser votre paiement',
+            url: '{{ payment.qr_scan_url }}'
+        });
+    } else {
+        copyLink();
+    }
+}
+
+function copyLink() {
+    const linkInput = document.getElementById('payment-link');
+    linkInput.select();
+    document.execCommand('copy');
+    alert('Lien copié dans le presse-papiers !');
+}
+</script>
+{% endblock %}

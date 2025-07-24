@@ -1,0 +1,354 @@
+{% extends 'base.html' %}
+
+{% block title %}Sélection de localisation en Guinée - {{ site_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+#guinea-map {
+    height: 500px;
+    border-radius: 10px;
+    border: 2px solid var(--primary-color);
+}
+
+.guinea-regions {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.region-card {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.region-card:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(212, 175, 55, 0.1);
+}
+
+.region-card.selected {
+    border-color: var(--primary-color);
+    background-color: rgba(212, 175, 55, 0.2);
+}
+
+.guinea-flag {
+    background: linear-gradient(to right, #ff0000, #ffff00, #00ff00);
+    height: 6px;
+    border-radius: 3px;
+    margin-bottom: 20px;
+}
+
+.prefecture-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.commune-list {
+    max-height: 150px;
+    overflow-y: auto;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="guinea-flag"></div>
+    
+    <div class="row">
+        <div class="col-12 text-center mb-4">
+            <h2><i class="fas fa-map-marked-alt me-2"></i>Localisation en République de Guinée</h2>
+            <p class="text-muted">Sélectionnez votre région, préfecture et commune pour une livraison précise</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="fas fa-map me-2"></i>Carte de la Guinée</h5>
+                </div>
+                <div class="card-body">
+                    <div id="guinea-map"></div>
+                    
+                    <div class="mt-3">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <button class="btn btn-outline-primary w-100" onclick="centerOnConakry()">
+                                    <i class="fas fa-city me-2"></i>Conakry
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-outline-primary w-100" onclick="centerOnKankan()">
+                                    <i class="fas fa-mountain me-2"></i>Kankan
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-outline-primary w-100" onclick="centerOnLabé()">
+                                    <i class="fas fa-tree me-2"></i>Labé
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="fas fa-list me-2"></i>Divisions administratives</h5>
+                </div>
+                <div class="card-body guinea-regions">
+                    <!-- Régions -->
+                    <div class="mb-4">
+                        <h6><i class="fas fa-globe-africa me-2"></i>Régions (8)</h6>
+                        {% for region in regions %}
+                        <div class="region-card" data-region-id="{{ region.id }}" onclick="selectRegion({{ region.id }}, '{{ region.name }}')">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ region.name }}</strong>
+                                    <br><small class="text-muted">Code: {{ region.code }}</small>
+                                </div>
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Préfectures -->
+                    <div class="mb-4" id="prefectures-section" style="display: none;">
+                        <h6><i class="fas fa-map-signs me-2"></i>Préfectures</h6>
+                        <div id="prefectures-list" class="prefecture-list"></div>
+                    </div>
+                    
+                    <!-- Communes -->
+                    <div class="mb-4" id="communes-section" style="display: none;">
+                        <h6><i class="fas fa-building me-2"></i>Communes</h6>
+                        <div id="communes-list" class="commune-list"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Localisation sélectionnée -->
+            <div class="card mt-3" id="selected-location" style="display: none;">
+                <div class="card-header bg-warning text-dark">
+                    <h6><i class="fas fa-map-pin me-2"></i>Localisation sélectionnée</h6>
+                </div>
+                <div class="card-body">
+                    <div id="location-details"></div>
+                    <button class="btn btn-primary w-100 mt-3" onclick="confirmLocation()">
+                        <i class="fas fa-check me-2"></i>Confirmer cette localisation
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let map;
+let selectedRegion = null;
+let selectedPrefecture = null;
+let selectedCommune = null;
+let currentMarker = null;
+
+// Coordonnées des principales villes de Guinée
+const guineaCities = {
+    conakry: [9.6412, -13.5784],
+    kankan: [10.3853, -9.3064],
+    labe: [11.3180, -12.2830],
+    kindia: [10.0374, -12.8644],
+    boke: [10.9324, -14.2847],
+    mamou: [10.3759, -12.0913],
+    faranah: [10.0406, -10.7430],
+    nzerekore: [7.7562, -8.8179]
+};
+
+function initMap() {
+    // Centrer sur la Guinée
+    map = L.map('guinea-map').setView([10.7226, -10.7083], 7);
+    
+    // Tuiles OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Ajouter les marqueurs des principales villes
+    Object.entries(guineaCities).forEach(([city, coords]) => {
+        L.marker(coords)
+            .addTo(map)
+            .bindPopup(`<strong>${city.charAt(0).toUpperCase() + city.slice(1)}</strong>`)
+            .on('click', function() {
+                map.setView(coords, 12);
+            });
+    });
+    
+    // Gestionnaire de clic sur la carte
+    map.on('click', function(e) {
+        if (currentMarker) {
+            map.removeLayer(currentMarker);
+        }
+        
+        currentMarker = L.marker([e.latlng.lat, e.latlng.lng])
+            .addTo(map)
+            .bindPopup('Position sélectionnée')
+            .openPopup();
+        
+        // Géocodage inverse pour obtenir des informations
+        reverseGeocode(e.latlng.lat, e.latlng.lng);
+    });
+}
+
+function selectRegion(regionId, regionName) {
+    selectedRegion = { id: regionId, name: regionName };
+    
+    // Mettre à jour l'interface
+    document.querySelectorAll('.region-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    document.querySelector(`[data-region-id="${regionId}"]`).classList.add('selected');
+    
+    // Charger les préfectures
+    fetch(`/geolocation/api/prefectures/?region_id=${regionId}`)
+        .then(response => response.json())
+        .then(data => {
+            const prefecturesList = document.getElementById('prefectures-list');
+            prefecturesList.innerHTML = '';
+            
+            data.prefectures.forEach(prefecture => {
+                const div = document.createElement('div');
+                div.className = 'region-card';
+                div.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${prefecture.name}</strong>
+                        </div>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                `;
+                div.onclick = () => selectPrefecture(prefecture.id, prefecture.name);
+                prefecturesList.appendChild(div);
+            });
+            
+            document.getElementById('prefectures-section').style.display = 'block';
+        });
+    
+    updateLocationDisplay();
+}
+
+function selectPrefecture(prefectureId, prefectureName) {
+    selectedPrefecture = { id: prefectureId, name: prefectureName };
+    
+    // Charger les communes
+    fetch(`/geolocation/api/communes/?prefecture_id=${prefectureId}`)
+        .then(response => response.json())
+        .then(data => {
+            const communesList = document.getElementById('communes-list');
+            communesList.innerHTML = '';
+            
+            data.communes.forEach(commune => {
+                const div = document.createElement('div');
+                div.className = 'region-card';
+                div.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${commune.name}</strong>
+                        </div>
+                        <i class="fas fa-check"></i>
+                    </div>
+                `;
+                div.onclick = () => selectCommune(commune.id, commune.name);
+                communesList.appendChild(div);
+            });
+            
+            document.getElementById('communes-section').style.display = 'block';
+        });
+    
+    updateLocationDisplay();
+}
+
+function selectCommune(communeId, communeName) {
+    selectedCommune = { id: communeId, name: communeName };
+    updateLocationDisplay();
+}
+
+function updateLocationDisplay() {
+    const details = document.getElementById('location-details');
+    let html = '';
+    
+    if (selectedRegion) {
+        html += `<p><strong>Région :</strong> ${selectedRegion.name}</p>`;
+    }
+    if (selectedPrefecture) {
+        html += `<p><strong>Préfecture :</strong> ${selectedPrefecture.name}</p>`;
+    }
+    if (selectedCommune) {
+        html += `<p><strong>Commune :</strong> ${selectedCommune.name}</p>`;
+    }
+    
+    if (html) {
+        details.innerHTML = html;
+        document.getElementById('selected-location').style.display = 'block';
+    }
+}
+
+function centerOnConakry() {
+    map.setView(guineaCities.conakry, 12);
+}
+
+function centerOnKankan() {
+    map.setView(guineaCities.kankan, 12);
+}
+
+function centerOnLabé() {
+    map.setView(guineaCities.labe, 12);
+}
+
+function reverseGeocode(lat, lng) {
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.address && data.address.country === 'Guinea') {
+                console.log('Localisation en Guinée détectée:', data);
+            }
+        })
+        .catch(error => console.log('Erreur géocodage:', error));
+}
+
+function confirmLocation() {
+    if (!selectedRegion) {
+        alert('Veuillez sélectionner au moins une région');
+        return;
+    }
+    
+    const locationData = {
+        region: selectedRegion,
+        prefecture: selectedPrefecture,
+        commune: selectedCommune,
+        coordinates: currentMarker ? [currentMarker.getLatLng().lat, currentMarker.getLatLng().lng] : null
+    };
+    
+    // Rediriger vers le formulaire de création de localisation
+    const params = new URLSearchParams();
+    params.append('region_id', selectedRegion.id);
+    if (selectedPrefecture) params.append('prefecture_id', selectedPrefecture.id);
+    if (selectedCommune) params.append('commune_id', selectedCommune.id);
+    if (locationData.coordinates) {
+        params.append('lat', locationData.coordinates[0]);
+        params.append('lng', locationData.coordinates[1]);
+    }
+    
+    window.location.href = `/geolocation/picker/?${params.toString()}`;
+}
+
+// Initialiser la carte
+document.addEventListener('DOMContentLoaded', initMap);
+</script>
+{% endblock %}

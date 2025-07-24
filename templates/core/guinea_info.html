@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+
+{% block title %}Livraison en Guinée - {{ site_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.guinea-hero {
+    background: linear-gradient(135deg, #ff0000, #ffff00, #00ff00);
+    color: white;
+    padding: 60px 0;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.guinea-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.guinea-hero .container {
+    position: relative;
+    z-index: 2;
+}
+
+.region-card {
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+    transition: transform 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.region-card:hover {
+    transform: translateY(-5px);
+}
+
+.region-header {
+    padding: 20px;
+    color: white;
+    text-align: center;
+}
+
+.delivery-info {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.cost-table {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section Guinée -->
+<section class="guinea-hero">
+    <div class="container">
+        <h1 class="display-4 fw-bold mb-3">
+            <i class="fas fa-map-marked-alt me-3"></i>
+            Livraison partout en Guinée
+        </h1>
+        <p class="lead mb-4">
+            De Conakry à Nzérékoré, nous livrons dans toute la République de Guinée
+        </p>
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="d-flex justify-content-center gap-4 text-center">
+                    <div>
+                        <h3>8</h3>
+                        <small>Régions couvertes</small>
+                    </div>
+                    <div>
+                        <h3>33</h3>
+                        <small>Préfectures</small>
+                    </div>
+                    <div>
+                        <h3>300+</h3>
+                        <small>Communes</small>
+                    </div>
+                    <div>
+                        <h3>24-72h</h3>
+                        <small>Délai moyen</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="container py-5">
+    <!-- Informations générales -->
+    <div class="row mb-5">
+        <div class="col-lg-8 mx-auto">
+            <div class="delivery-info">
+                <h3 class="text-center mb-4">
+                    <i class="fas fa-truck me-2"></i>Comment ça marche ?
+                </h3>
+                <div class="row">
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                            <span class="fw-bold">1</span>
+                        </div>
+                        <h6>Commandez</h6>
+                        <small class="text-muted">Sélectionnez vos produits</small>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                            <span class="fw-bold">2</span>
+                        </div>
+                        <h6>Localisez</h6>
+                        <small class="text-muted">Précisez votre adresse</small>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="bg-warning text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                            <span class="fw-bold">3</span>
+                        </div>
+                        <h6>Livreur</h6>
+                        <small class="text-muted">Un livreur est assigné</small>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="bg-info text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                            <span class="fw-bold">4</span>
+                        </div>
+                        <h6>Payez</h6>
+                        <small class="text-muted">QR code ou espèces</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Régions de Guinée -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="text-center mb-4">Nos zones de livraison</h2>
+            <div class="row">
+                <!-- Conakry -->
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="card region-card h-100">
+                        <div class="region-header" style="background: linear-gradient(135deg, #007bff, #0056b3);">
+                            <h5>Conakry</h5>
+                            <small>Capitale économique</small>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-clock text-primary me-2"></i>24h</li>
+                                <li><i class="fas fa-money-bill text-success me-2"></i>15,000 GNF</li>
+                                <li><i class="fas fa-truck text-warning me-2"></i>Livraison rapide</li>
+                                <li><i class="fas fa-gift text-info me-2"></i>Gratuit dès 200,000 GNF</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Kindia -->
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="card region-card h-100">
+                        <div class="region-header" style="background: linear-gradient(135deg, #28a745, #1e7e34);">
+                            <h5>Kindia</h5>
+                            <small>Basse Guinée</small>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-clock text-primary me-2"></i>2-3 jours</li>
+                                <li><i class="fas fa-money-bill text-success me-2"></i>25,000 GNF</li>
+                                <li><i class="fas fa-truck text-warning me-2"></i>Livraison standard</li>
+                                <li><i class="fas fa-gift text-info me-2"></i>Gratuit dès 300,000 GNF</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Labé -->
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="card region-card h-100">
+                        <div class="region-header" style="background: linear-gradient(135deg, #ffc107, #e0a800);">
+                            <h5>Labé</h5>
+                            <small>Moyenne Guinée</small>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-clock text-primary me-2"></i>3 jours</li>
+                                <li><i class="fas fa-money-bill text-success me-2"></i>35,000 GNF</li>
+                                <li><i class="fas fa-truck text-warning me-2"></i>Livraison montagne</li>
+                                <li><i class="fas fa-gift text-info me-2"></i>Gratuit dès 400,000 GNF</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Kankan -->
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="card region-card h-100">
+                        <div class="region-header" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                            <h5>Kankan</h5>
+                            <small>Haute Guinée</small>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-clock text-primary me-2"></i>3-4 jours</li>
+                                <li><i class="fas fa-money-bill text-success me-2"></i>40,000 GNF</li>
+                                <li><i class="fas fa-truck text-warning me-2"></i>Livraison longue distance</li>
+                                <li><i class="fas fa-gift text-info me-2"></i>Gratuit dès 500,000 GNF</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tableau des coûts -->
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <div class="cost-table">
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Région</th>
+                                <th>Coût de base</th>
+                                <th>Par km</th>
+                                <th>Délai</th>
+                                <th>Livraison gratuite</th>
+                                <th>Distance max</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Conakry</strong></td>
+                                <td>15,000 GNF</td>
+                                <td>1,000 GNF</td>
+                                <td>24h</td>
+                                <td>200,000 GNF</td>
+                                <td>25 km</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Kindia</strong></td>
+                                <td>25,000 GNF</td>
+                                <td>1,500 GNF</td>
+                                <td>2-3 jours</td>
+                                <td>300,000 GNF</td>
+                                <td>40 km</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Labé</strong></td>
+                                <td>35,000 GNF</td>
+                                <td>1,800 GNF</td>
+                                <td>3 jours</td>
+                                <td>400,000 GNF</td>
+                                <td>50 km</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Kankan</strong></td>
+                                <td>40,000 GNF</td>
+                                <td>2,000 GNF</td>
+                                <td>3-4 jours</td>
+                                <td>500,000 GNF</td>
+                                <td>60 km</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Nzérékoré</strong></td>
+                                <td>45,000 GNF</td>
+                                <td>2,500 GNF</td>
+                                <td>4 jours</td>
+                                <td>600,000 GNF</td>
+                                <td>70 km</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Boké</strong></td>
+                                <td>30,000 GNF</td>
+                                <td>1,600 GNF</td>
+                                <td>2-3 jours</td>
+                                <td>350,000 GNF</td>
+                                <td>45 km</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="alert alert-info mt-4">
+                <h5><i class="fas fa-info-circle me-2"></i>Informations importantes</h5>
+                <ul class="mb-0">
+                    <li>Les prix sont en Francs Guinéens (GNF)</li>
+                    <li>Les délais peuvent varier selon les conditions météorologiques</li>
+                    <li>Livraison gratuite selon le montant de votre commande</li>
+                    <li>Paiement possible en espèces, Mobile Money ou carte bancaire</li>
+                    <li>Suivi en temps réel de votre commande</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

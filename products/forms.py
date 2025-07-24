@@ -7,12 +7,13 @@ from geolocation.models import UserLocation
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ['name', 'description', 'short_description', 'category', 'price', 'discount_price', 'stock', 'sku', 'weight', 'dimensions', 'is_active', 'is_featured']
+        fields = ['name', 'description', 'short_description', 'category', 'price', 'discount_price', 'stock', 'sku', 'weight', 'dimensions', 'seller_pays_delivery', 'delivery_included_price', 'is_active', 'is_featured']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 5}),
             'short_description': forms.Textarea(attrs={'rows': 3}),
             'price': forms.NumberInput(attrs={'step': '0.01'}),
             'discount_price': forms.NumberInput(attrs={'step': '0.01'}),
+            'delivery_included_price': forms.NumberInput(attrs={'step': '0.01'}),
             'weight': forms.NumberInput(attrs={'step': '0.01'}),
         }
     

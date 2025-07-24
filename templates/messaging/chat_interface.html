@@ -1,0 +1,294 @@
+{% extends 'base.html' %}
+
+{% block title %}Chat - {{ recipient.get_full_name|default:recipient.username }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.chat-container {
+    height: 70vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+    padding: 15px;
+    border-radius: 10px 10px 0 0;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    background: #f8f9fa;
+}
+
+.message {
+    margin-bottom: 15px;
+    display: flex;
+}
+
+.message.own {
+    justify-content: flex-end;
+}
+
+.message-bubble {
+    max-width: 70%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    position: relative;
+}
+
+.message.own .message-bubble {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+}
+
+.message:not(.own) .message-bubble {
+    background: white;
+    border: 1px solid #e9ecef;
+}
+
+.message-time {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-top: 5px;
+}
+
+.chat-input {
+    padding: 20px;
+    background: white;
+    border-top: 1px solid #e9ecef;
+    border-radius: 0 0 10px 10px;
+}
+
+.typing-indicator {
+    display: none;
+    padding: 10px 20px;
+    font-style: italic;
+    color: #6c757d;
+}
+
+.online-status {
+    width: 12px;
+    height: 12px;
+    background: #28a745;
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: 8px;
+}
+
+.attachment-preview {
+    max-width: 200px;
+    border-radius: 8px;
+    margin-top: 8px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card chat-container">
+                <!-- En-tête du chat -->
+                <div class="chat-header">
+                    <div class="d-flex align-items-center">
+                        {% if recipient.avatar %}
+                            <img src="{{ recipient.avatar.url }}" class="rounded-circle me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                        {% else %}
+                            <i class="fas fa-user-circle fa-3x me-3"></i>
+                        {% endif %}
+                        <div class="flex-grow-1">
+                            <h5 class="mb-0">{{ recipient.get_full_name|default:recipient.username }}</h5>
+                            <small class="opacity-75">
+                                {{ recipient.get_user_type_display }}
+                                <span class="online-status"></span>
+                            </small>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-light btn-sm" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'accounts:seller_profile_public' recipient.username %}">
+                                    <i class="fas fa-user me-2"></i>Voir le profil
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="blockUser()">
+                                    <i class="fas fa-ban me-2"></i>Bloquer
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="reportUser()">
+                                    <i class="fas fa-flag me-2"></i>Signaler
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Messages -->
+                <div class="chat-messages" id="chat-messages">
+                    {% for message in conversation.messages.all %}
+                    <div class="message {% if message.sender == user %}own{% endif %}">
+                        <div class="message-bubble">
+                            {% if message.content %}
+                                <div>{{ message.content|linebreaks }}</div>
+                            {% endif %}
+                            {% if message.attachment %}
+                                {% if message.attachment.url|slice:"-4:" in ".jpg,.png,.gif,.jpeg" %}
+                                    <img src="{{ message.attachment.url }}" class="attachment-preview" alt="Image">
+                                {% else %}
+                                    <a href="{{ message.attachment.url }}" target="_blank" class="text-decoration-none">
+                                        <i class="fas fa-file me-1"></i>{{ message.attachment.name }}
+                                    </a>
+                                {% endif %}
+                            {% endif %}
+                            <div class="message-time">
+                                {{ message.created_at|date:"H:i" }}
+                                {% if message.sender == user and message.is_read %}
+                                    <i class="fas fa-check-double text-primary"></i>
+                                {% elif message.sender == user %}
+                                    <i class="fas fa-check"></i>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Indicateur de frappe -->
+                <div class="typing-indicator" id="typing-indicator">
+                    {{ recipient.get_full_name|default:recipient.username }} est en train d'écrire...
+                </div>
+                
+                <!-- Zone de saisie -->
+                <div class="chat-input">
+                    <form id="message-form" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('file-input').click()">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            <input type="file" id="file-input" name="attachment" style="display: none;" onchange="previewFile()">
+                            <input type="text" class="form-control" id="message-input" name="content" 
+                                   placeholder="Tapez votre message..." autocomplete="off">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div id="file-preview" class="mt-2" style="display: none;"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let typingTimer;
+let isTyping = false;
+
+// Auto-scroll vers le bas
+function scrollToBottom() {
+    const messagesContainer = document.getElementById('chat-messages');
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Envoyer un message
+document.getElementById('message-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const messageInput = document.getElementById('message-input');
+    
+    if (!messageInput.value.trim() && !formData.get('attachment')) {
+        return;
+    }
+    
+    fetch(`/messaging/conversation/{{ conversation.id }}/send/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            messageInput.value = '';
+            document.getElementById('file-preview').style.display = 'none';
+            document.getElementById('file-input').value = '';
+            // Recharger les messages
+            location.reload();
+        }
+    })
+    .catch(error => console.error('Erreur:', error));
+});
+
+// Indicateur de frappe
+document.getElementById('message-input').addEventListener('input', function() {
+    if (!isTyping) {
+        isTyping = true;
+        // Envoyer signal de frappe via WebSocket si disponible
+    }
+    
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+        isTyping = false;
+        // Arrêter signal de frappe
+    }, 1000);
+});
+
+// Prévisualisation des fichiers
+function previewFile() {
+    const fileInput = document.getElementById('file-input');
+    const preview = document.getElementById('file-preview');
+    const file = fileInput.files[0];
+    
+    if (file) {
+        preview.style.display = 'block';
+        
+        if (file.type.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.style.maxWidth = '200px';
+            img.style.borderRadius = '8px';
+            preview.innerHTML = '';
+            preview.appendChild(img);
+        } else {
+            preview.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-file me-2"></i>${file.name}
+                    <button type="button" class="btn-close float-end" onclick="clearFile()"></button>
+                </div>
+            `;
+        }
+    }
+}
+
+function clearFile() {
+    document.getElementById('file-input').value = '';
+    document.getElementById('file-preview').style.display = 'none';
+}
+
+function blockUser() {
+    if (confirm('Voulez-vous vraiment bloquer cet utilisateur ?')) {
+        // Implémenter le blocage
+        alert('Utilisateur bloqué');
+    }
+}
+
+function reportUser() {
+    const reason = prompt('Raison du signalement :');
+    if (reason) {
+        // Implémenter le signalement
+        alert('Utilisateur signalé');
+    }
+}
+
+// Scroll automatique et focus
+document.addEventListener('DOMContentLoaded', function() {
+    scrollToBottom();
+    document.getElementById('message-input').focus();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Erreur de paiement - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card text-center">
+                <div class="card-body py-5">
+                    <i class="fas fa-exclamation-triangle fa-5x text-warning mb-4"></i>
+                    <h2 class="text-warning mb-3">Erreur de paiement</h2>
+                    <p class="lead mb-4">{{ error }}</p>
+                    
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle me-2"></i>Que faire ?</h5>
+                        <ul class="list-unstyled mb-0">
+                            <li>• Contactez le vendeur ou le livreur</li>
+                            <li>• Vérifiez que le QR code n'a pas expiré</li>
+                            <li>• Demandez un nouveau QR code si nécessaire</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+                        <a href="{% url 'orders:detail' payment.order.pk %}" class="btn btn-primary">
+                            <i class="fas fa-eye me-2"></i>Voir ma commande
+                        </a>
+                        <a href="{% url 'core:contact' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-headset me-2"></i>Contacter le support
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
