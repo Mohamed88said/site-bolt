@@ -10,13 +10,13 @@
     height: 500px;
     width: 100%;
     border-radius: 10px;
-    border: 2px solid #ddd;
+    border: 2px solid var(--primary-color);
 }
 
 .delivery-person-card {
     border: 2px solid #e9ecef;
-    border-radius: 10px;
-    padding: 15px;
+    border-radius: 15px;
+    padding: 20px;
     margin-bottom: 15px;
     transition: all 0.3s ease;
     cursor: pointer;
@@ -25,29 +25,62 @@
 .delivery-person-card:hover {
     border-color: var(--primary-color);
     box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+    transform: translateY(-2px);
 }
 
-.delivery-person-card.selected {
+.delivery-person-card.has-request {
     border-color: #28a745;
-    background-color: rgba(40, 167, 69, 0.1);
+    background: rgba(40, 167, 69, 0.05);
 }
 
 .distance-badge {
     background: linear-gradient(135deg, #17a2b8, #6f42c1);
     color: white;
-    padding: 5px 10px;
+    padding: 5px 12px;
     border-radius: 15px;
     font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.rating-stars {
+    color: #ffc107;
+}
+
+.guinea-flag {
+    background: linear-gradient(to right, #ff0000, #ffff00, #00ff00);
+    height: 4px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+}
+
+.map-container {
+    position: relative;
+}
+
+.map-legend {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 1000;
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container py-4">
+    <div class="guinea-flag"></div>
+    
     <div class="row">
         <div class="col-12 mb-4">
             <h2><i class="fas fa-map-marked-alt me-2"></i>Choisir un livreur</h2>
-            <p class="text-muted">Livraison #{{ delivery.tracking_number }} - Sélectionnez un livreur disponible</p>
+            <p class="text-muted">
+                Livraison {{ delivery.tracking_number }} - Commande #{{ delivery.order.id|slice:":8" }}
+                <br>Sélectionnez un livreur disponible ou acceptez une demande existante
+            </p>
         </div>
     </div>
     
@@ -55,10 +88,16 @@
         <div class="col-lg-8">
             <div class="card">
                 <div class="card-header">
-                    <h5><i class="fas fa-map me-2"></i>Carte des livreurs</h5>
+                    <h5><i class="fas fa-map me-2"></i>Carte des livreurs disponibles</h5>
                 </div>
                 <div class="card-body">
-                    <div id="delivery-map"></div>
+                    <div class="map-container">
+                        <div id="delivery-map"></div>
+                        <div class="map-legend">
+                            <div><i class="fas fa-home" style="color: red;"></i> Point de livraison</div>
+                            <div><i class="fas fa-truck" style="color: blue;"></i> Livreurs disponibles</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -66,47 +105,108 @@
         <div class="col-lg-4">
             <div class="card">
                 <div class="card-header">
-                    <h5><i class="fas fa-truck me-2"></i>Livreurs disponibles</h5>
+                    <h5><i class="fas fa-info-circle me-2"></i>Détails de la livraison</h5>
                 </div>
-                <div class="card-body" style="max-height: 500px; overflow-y: auto;">
-                    {% for person_info in available_delivery_persons %}
-                    <div class="delivery-person-card" data-person-id="{{ person_info.user.id }}">
-                        <div class="d-flex align-items-center mb-2">
-                            {% if person_info.user.avatar %}
-                                <img src="{{ person_info.user.avatar.url }}" class="rounded-circle me-3" 
-                                     style="width: 50px; height: 50px; object-fit: cover;">
-                            {% else %}
-                                <i class="fas fa-user-circle fa-3x text-muted me-3"></i>
-                            {% endif %}
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Adresse :</strong>
+                        {% if delivery.location_point %}
+                            <br>{{ delivery.location_point.name }}
+                            <br><small class="text-muted">{{ delivery.location_point.full_address }}</small>
+                        {% else %}
+                            <br>{{ delivery.order.full_shipping_address }}
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Coût estimé :</strong> {{ delivery.delivery_cost|floatformat:0 }} GNF
+                        <br><small class="text-muted">Payé par {{ delivery.get_paid_by_display|lower }}</small>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Articles :</strong> {{ delivery.order.items.count }} article{{ delivery.order.items.count|pluralize }}
+                        <br><strong>Valeur :</strong> {{ delivery.order.total_amount|floatformat:0 }} GNF
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5><i class="fas fa-users me-2"></i>Livreurs disponibles</h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% for person in delivery_persons %}
+                    <div class="delivery-person-card {% if person.existing_request %}has-request{% endif %}" 
+                         data-person-id="{{ person.id }}" 
+                         data-lat="{{ person.latitude }}" 
+                         data-lng="{{ person.longitude }}">
+                        
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="fas fa-user-circle fa-3x text-primary me-3"></i>
                             <div class="flex-grow-1">
-                                <h6 class="mb-0">{{ person_info.user.get_full_name|default:person_info.user.username }}</h6>
-                                <small class="text-muted">{{ person_info.user.delivery_profile.get_vehicle_type_display|default:"Véhicule non spécifié" }}</small>
-                                {% if person_info.distance %}
-                                    <br><span class="distance-badge">{{ person_info.distance }} km</span>
+                                <h6 class="mb-1">{{ person.username }}</h6>
+                                <small class="text-muted">{{ person.vehicle_type }}</small>
+                                {% if person.distance %}
+                                    <br><span class="distance-badge">{{ person.distance }} km</span>
                                 {% endif %}
+                            </div>
+                            <div class="text-end">
+                                <div class="rating-stars">
+                                    {% for i in "12345" %}
+                                        {% if person.rating >= i|add:0 %}
+                                            <i class="fas fa-star"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <small class="text-muted">{{ person.rating|floatformat:1 }}/5</small>
                             </div>
                         </div>
                         
-                        {% if person_info.existing_request %}
-                            <div class="alert alert-info p-2">
-                                <small><strong>Demande existante :</strong> {{ person_info.existing_request.proposed_cost }} GNF</small>
-                                <br><small>{{ person_info.existing_request.message|default:"Aucun message" }}</small>
-                                <div class="mt-2">
-                                    <button class="btn btn-success btn-sm" onclick="acceptRequest({{ person_info.existing_request.id }})">
-                                        <i class="fas fa-check me-1"></i>Accepter
+                        {% if person.existing_request %}
+                            <!-- Demande existante -->
+                            <div class="alert alert-success p-2 mb-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>Demande reçue</strong>
+                                        <br><span class="text-success">{{ person.existing_request.proposed_cost|floatformat:0 }} GNF</span>
+                                    </div>
+                                    <button class="btn btn-success btn-sm" onclick="acceptRequest({{ person.existing_request.id }})">
+                                        <i class="fas fa-check"></i> Accepter
                                     </button>
                                 </div>
+                                {% if person.existing_request.message %}
+                                    <small class="text-muted">{{ person.existing_request.message|truncatechars:50 }}</small>
+                                {% endif %}
                             </div>
                         {% else %}
-                            <div class="text-center">
-                                <small class="text-muted">Aucune demande de ce livreur</small>
-                            </div>
+                            <!-- Proposer une livraison -->
+                            <form class="propose-delivery-form" data-person-id="{{ person.id }}">
+                                {% csrf_token %}
+                                <div class="row">
+                                    <div class="col-8">
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control" name="proposed_cost" 
+                                                   placeholder="Prix (GNF)" value="{{ delivery.delivery_cost|floatformat:0 }}" 
+                                                   step="1000" min="5000" required>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fas fa-paper-plane"></i> Proposer
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <select class="form-select form-select-sm" name="paid_by">
+                                            <option value="buyer" {% if delivery.paid_by == 'buyer' %}selected{% endif %}>Acheteur</option>
+                                            <option value="seller" {% if delivery.paid_by == 'seller' %}selected{% endif %}>Vendeur</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
                         {% endif %}
                         
-                        {% if person_info.user.phone %}
+                        {% if person.phone_number %}
                         <div class="mt-2">
-                            <a href="tel:{{ person_info.user.phone }}" class="btn btn-outline-primary btn-sm w-100">
-                                <i class="fas fa-phone me-1"></i>{{ person_info.user.phone }}
+                            <a href="tel:{{ person.phone_number }}" class="btn btn-outline-primary btn-sm w-100">
+                                <i class="fas fa-phone me-1"></i>{{ person.phone_number }}
                             </a>
                         </div>
                         {% endif %}
@@ -115,47 +215,157 @@
                     <div class="text-center py-4">
                         <i class="fas fa-truck fa-3x text-muted mb-3"></i>
                         <h6>Aucun livreur disponible</h6>
-                        <p class="text-muted">Aucun livreur n'est disponible pour cette zone.</p>
+                        <p class="text-muted">Aucun livreur n'est disponible dans cette zone pour le moment.</p>
                     </div>
                     {% endfor %}
                 </div>
             </div>
         </div>
     </div>
+    
+    <div class="mt-4">
+        <a href="{% url 'deliveries:detail' delivery.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Retour aux détails
+        </a>
+    </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="{% static 'js/map.js' %}"></script>
 <script>
+let map;
+let deliveryMarker;
+let deliveryPersonMarkers = [];
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialiser la carte
+    initMap();
+    setupEventListeners();
+});
+
+function initMap() {
+    // Initialiser la carte centrée sur la Guinée
     {% if delivery_location %}
         const deliveryLat = {{ delivery_location.latitude }};
         const deliveryLng = {{ delivery_location.longitude }};
-        initMap('delivery-map', deliveryLat, deliveryLng, 12);
-        
-        // Marqueur de livraison
-        addMarker(deliveryLat, deliveryLng, 
-            '<strong>{{ delivery_location.name }}</strong><br>Point de livraison', 
-            'fa-home');
-        
-        // Ajouter les livreurs
-        {% for person_info in available_delivery_persons %}
-        {% if person_info.user.delivery_profile.location_point %}
-            addMarker(
-                {{ person_info.user.delivery_profile.location_point.latitude }}, 
-                {{ person_info.user.delivery_profile.location_point.longitude }},
-                '<strong>{{ person_info.user.username }}</strong><br>Livreur{% if person_info.distance %}<br>Distance: {{ person_info.distance }} km{% endif %}',
-                'fa-truck'
-            );
-        {% endif %}
-        {% endfor %}
-        
-        fitMapToMarkers();
+        map = L.map('delivery-map').setView([deliveryLat, deliveryLng], 12);
     {% else %}
-        initMap('delivery-map');
+        map = L.map('delivery-map').setView([9.6412, -13.5784], 10); // Conakry par défaut
     {% endif %}
-});
+    
+    // Ajouter les tuiles OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Marqueur du point de livraison
+    {% if delivery_location %}
+        deliveryMarker = L.marker([deliveryLat, deliveryLng], {
+            icon: L.divIcon({
+                html: '<i class="fas fa-home" style="color: red; font-size: 20px;"></i>',
+                iconSize: [20, 20],
+                className: 'custom-div-icon'
+            })
+        }).addTo(map);
+        
+        deliveryMarker.bindPopup(`
+            <strong>Point de livraison</strong><br>
+            {{ delivery_location.name }}<br>
+            <small>{{ delivery_location.full_address }}</small>
+        `);
+    {% endif %}
+    
+    // Marqueurs des livreurs
+    {% for person in delivery_persons %}
+        const personMarker = L.marker([{{ person.latitude }}, {{ person.longitude }}], {
+            icon: L.divIcon({
+                html: '<i class="fas fa-truck" style="color: blue; font-size: 16px;"></i>',
+                iconSize: [16, 16],
+                className: 'custom-div-icon'
+            })
+        }).addTo(map);
+        
+        personMarker.bindPopup(`
+            <strong>{{ person.username }}</strong><br>
+            {{ person.vehicle_type }}<br>
+            {% if person.distance %}Distance: {{ person.distance }} km<br>{% endif %}
+            Note: {{ person.rating|floatformat:1 }}/5<br>
+            {% if person.phone_number %}<a href="tel:{{ person.phone_number }}">{{ person.phone_number }}</a>{% endif %}
+        `);
+        
+        deliveryPersonMarkers.push(personMarker);
+        
+        // Clic sur le marqueur pour sélectionner le livreur
+        personMarker.on('click', function() {
+            const card = document.querySelector(`[data-person-id="{{ person.id }}"]`);
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.style.borderColor = 'var(--primary-color)';
+                setTimeout(() => {
+                    card.style.borderColor = '';
+                }, 2000);
+            }
+        });
+    {% endfor %}
+    
+    // Ajuster la vue pour inclure tous les marqueurs
+    const allMarkers = [deliveryMarker, ...deliveryPersonMarkers].filter(Boolean);
+    if (allMarkers.length > 1) {
+        const group = new L.featureGroup(allMarkers);
+        map.fitBounds(group.getBounds().pad(0.1));
+    }
+}
+
+function setupEventListeners() {
+    // Gestion des formulaires de proposition
+    document.querySelectorAll('.propose-delivery-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const personId = this.dataset.personId;
+            const formData = new FormData(this);
+            formData.append('delivery_person_id', personId);
+            
+            fetch(`/deliveries/assign/${{{ delivery.id }}}/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Erreur lors de l\'envoi de la proposition');
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                alert('Erreur lors de l\'envoi de la proposition');
+            });
+        });
+    });
+    
+    // Clic sur les cartes de livreurs
+    document.querySelectorAll('.delivery-person-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const lat = parseFloat(this.dataset.lat);
+            const lng = parseFloat(this.dataset.lng);
+            
+            if (lat && lng) {
+                map.setView([lat, lng], 15);
+                
+                // Trouver et ouvrir le popup du marqueur correspondant
+                deliveryPersonMarkers.forEach(marker => {
+                    const markerLat = marker.getLatLng().lat;
+                    const markerLng = marker.getLatLng().lng;
+                    if (Math.abs(markerLat - lat) < 0.001 && Math.abs(markerLng - lng) < 0.001) {
+                        marker.openPopup();
+                    }
+                });
+            }
+        });
+    });
+}
 
 function acceptRequest(requestId) {
     if (confirm('Accepter cette demande de livraison ?')) {
@@ -169,8 +379,8 @@ function acceptRequest(requestId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Demande acceptée !');
-                window.location.href = '{% url "deliveries:detail" pk=delivery.id %}';
+                alert('Demande acceptée ! Le livreur a été assigné.');
+                window.location.href = '{% url "deliveries:detail" delivery.id %}';
             } else {
                 alert('Erreur: ' + data.error);
             }

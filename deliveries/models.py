@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from orders.models import Order
 from geolocation.models import LocationPoint, DeliveryZone
 import uuid
+import math
 
 User = get_user_model()
 
@@ -25,13 +26,13 @@ class Delivery(models.Model):
     delivery_person = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
                                       related_name='deliveries', limit_choices_to={'user_type': 'delivery'})
     location_point = models.ForeignKey(LocationPoint, on_delete=models.SET_NULL, null=True, blank=True,
-                                     related_name='deliveries')
+                                     related_name='deliveries', verbose_name=_('Point de localisation'))
     delivery_zone = models.ForeignKey(DeliveryZone, on_delete=models.SET_NULL, null=True, blank=True,
-                                    related_name='deliveries')
+                                    related_name='deliveries', verbose_name=_('Zone de livraison'))
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     tracking_number = models.CharField(max_length=100, unique=True, blank=True)
-    delivery_cost = models.DecimalField(max_digits=10, decimal_places=2, default=15000)  # 15,000 GNF par défaut
-    paid_by = models.CharField(max_length=20, choices=PAID_BY_CHOICES, default='buyer')
+    delivery_cost = models.DecimalField(max_digits=10, decimal_places=2, default=15000)  # 15,000 GNF
+    paid_by = models.CharField(max_length=20, choices=PAID_BY_CHOICES, default='buyer', verbose_name=_('Payé par'))
     estimated_delivery_time = models.DateTimeField(null=True, blank=True)
     actual_delivery_time = models.DateTimeField(null=True, blank=True)
     delivery_notes = models.TextField(blank=True)
@@ -44,62 +45,70 @@ class Delivery(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"Livraison {self.tracking_number or self.id} - {self.order}"
+        return f"Livraison {self.tracking_number} - {self.order}"
     
     def save(self, *args, **kwargs):
         if not self.tracking_number:
-            self.tracking_number = str(uuid.uuid4())[:8].upper()
+            self.tracking_number = f"LIV{str(uuid.uuid4())[:8].upper()}"
         super().save(*args, **kwargs)
     
-    def calculate_delivery_cost(self):
-        """Calcule le coût de livraison basé sur la distance"""
-        if not self.location_point:
-            return self.delivery_cost
-        
-        # Obtenir la localisation du vendeur
-        seller = self.order.items.first().product.seller if self.order.items.exists() else None
-        if not seller:
-            return self.delivery_cost
-        
-        # Coordonnées par défaut (Conakry)
-        seller_location = None
-        if hasattr(seller, 'seller_profile') and seller.seller_profile.location_point:
-            seller_location = seller.seller_profile.location_point
-        
-        if seller_location:
-            distance = seller_location.calculate_distance_to(self.location_point)
-            if distance:
-                # Coût de base + distance
-                zone = self.delivery_zone or self.get_delivery_zone()
-                if zone:
-                    return zone.calculate_delivery_cost(distance)
-                else:
-                    # Calcul simple : 15,000 GNF + 1,000 GNF/km
-                    return 15000 + (distance * 1000)
-        
-        return self.delivery_cost
-    
-    def get_delivery_zone(self):
-        """Trouve la zone de livraison appropriée"""
+    def calculate_distance_to_seller(self):
+        """Calcule la distance entre le point de livraison et le vendeur"""
         if not self.location_point:
             return None
         
-        zones = DeliveryZone.objects.filter(
-            models.Q(communes=self.location_point.commune) |
-            models.Q(prefectures=self.location_point.prefecture) |
-            models.Q(regions=self.location_point.region),
-            is_active=True
-        ).first()
+        # Obtenir le vendeur principal (premier produit)
+        seller = self.order.items.first().product.seller if self.order.items.exists() else None
+        if not seller:
+            return None
         
-        return zones
+        # Coordonnées du vendeur (par défaut Conakry si pas défini)
+        seller_lat = 9.6412  # Conakry par défaut
+        seller_lng = -13.5784
+        
+        # Si le vendeur a une localisation définie
+        if hasattr(seller, 'seller_profile') and seller.seller_profile.location_point:
+            seller_lat = float(seller.seller_profile.location_point.latitude)
+            seller_lng = float(seller.seller_profile.location_point.longitude)
+        
+        # Coordonnées de livraison
+        delivery_lat = float(self.location_point.latitude)
+        delivery_lng = float(self.location_point.longitude)
+        
+        # Calcul de distance (formule Haversine)
+        R = 6371  # Rayon de la Terre en km
+        
+        lat1_rad = math.radians(seller_lat)
+        lat2_rad = math.radians(delivery_lat)
+        delta_lat = math.radians(delivery_lat - seller_lat)
+        delta_lng = math.radians(delivery_lng - seller_lng)
+        
+        a = (math.sin(delta_lat / 2) ** 2 + 
+             math.cos(lat1_rad) * math.cos(lat2_rad) * 
+             math.sin(delta_lng / 2) ** 2)
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        
+        return R * c
+    
+    def calculate_delivery_cost(self):
+        """Calcule le coût de livraison basé sur la distance"""
+        distance = self.calculate_distance_to_seller()
+        if not distance:
+            return 15000  # Coût par défaut
+        
+        # Coût de base + distance
+        base_cost = 15000  # 15,000 GNF
+        cost_per_km = 1000  # 1,000 GNF par km
+        
+        total_cost = base_cost + (distance * cost_per_km)
+        return min(total_cost, 100000)  # Maximum 100,000 GNF
 
 class DeliveryRequest(models.Model):
-    """Demandes de livraison par les livreurs"""
     delivery = models.ForeignKey(Delivery, on_delete=models.CASCADE, related_name='requests')
     delivery_person = models.ForeignKey(User, on_delete=models.CASCADE, related_name='delivery_requests',
                                       limit_choices_to={'user_type': 'delivery'})
     message = models.TextField(blank=True, verbose_name=_('Message'))
-    proposed_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_('Coût proposé'))
+    proposed_cost = models.DecimalField(max_digits=10, decimal_places=2, default=15000, verbose_name=_('Coût proposé'))
     is_accepted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -113,7 +122,6 @@ class DeliveryRequest(models.Model):
         return f"Demande de {self.delivery_person.username} pour {self.delivery}"
 
 class DeliveryRating(models.Model):
-    """Évaluations des livraisons"""
     delivery = models.OneToOneField(Delivery, on_delete=models.CASCADE, related_name='rating')
     rating = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
     comment = models.TextField(blank=True)
@@ -126,3 +134,45 @@ class DeliveryRating(models.Model):
     
     def __str__(self):
         return f"Évaluation {self.rating}/5 pour {self.delivery}"
+
+class DeliveryPerson(models.Model):
+    AVAILABILITY_CHOICES = [
+        ('available', _('Disponible')),
+        ('unavailable', _('Indisponible')),
+    ]
+    
+    VEHICLE_CHOICES = [
+        ('bike', _('Vélo')),
+        ('car', _('Voiture')),
+        ('van', _('Camionnette')),
+        ('other', _('Autre')),
+    ]
+    
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='delivery_person_profile',
+                              limit_choices_to={'user_type': 'delivery'}, verbose_name=_('Utilisateur'))
+    phone_number = models.CharField(max_length=20, verbose_name=_('Numéro de téléphone'))
+    vehicle_type = models.CharField(max_length=20, choices=VEHICLE_CHOICES, blank=True, verbose_name=_('Type de véhicule'))
+    location_point = models.ForeignKey(LocationPoint, on_delete=models.SET_NULL, null=True, blank=True,
+                                     related_name='delivery_persons', verbose_name=_('Position actuelle'))
+    availability_status = models.CharField(max_length=20, choices=AVAILABILITY_CHOICES, default='available',
+                                         verbose_name=_('Statut de disponibilité'))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Créé le'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Mis à jour le'))
+    
+    class Meta:
+        verbose_name = _('Livreur')
+        verbose_name_plural = _('Livreurs')
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.get_vehicle_type_display()}"
+    
+    @property
+    def is_available(self):
+        return self.availability_status == 'available'
+    
+    def calculate_distance_to(self, location_point):
+        """Calcule la distance vers un point de livraison"""
+        if not self.location_point or not location_point:
+            return None
+        
+        return self.location_point.calculate_distance_to(location_point)

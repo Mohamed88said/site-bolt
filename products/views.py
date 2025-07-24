@@ -1,13 +1,12 @@
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.urls import reverse_lazy
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.urls import reverse_lazy
 from django.db.models import Q, Avg
-from .models import Product, Category, Review
-from .forms import ProductForm, ProductImageFormSet, ReviewForm, ProductSearchForm
-from geolocation.models import UserLocation
+from .models import Product, Category
+from .forms import ProductForm, ProductImageFormSet
 
 class ProductListView(ListView):
     model = Product
@@ -16,46 +15,49 @@ class ProductListView(ListView):
     paginate_by = 12
     
     def get_queryset(self):
-        queryset = Product.objects.filter(is_active=True).exclude(slug__isnull=True).exclude(slug='')
-        form = ProductSearchForm(self.request.GET, user=self.request.user)
-        if form.is_valid():
-            query = form.cleaned_data.get('q')
-            category = form.cleaned_data.get('category')
-            min_price = form.cleaned_data.get('min_price')
-            max_price = form.cleaned_data.get('max_price')
-            sort_by = form.cleaned_data.get('sort', '-created_at')
-            
-            if query:
-                queryset = queryset.filter(
-                    Q(name__icontains=query) | 
-                    Q(description__icontains=query) |
-                    Q(category__name__icontains=query)
-                )
-            if category:
-                queryset = queryset.filter(category=category)
-            if min_price:
-                queryset = queryset.filter(price__gte=min_price)
-            if max_price:
-                queryset = queryset.filter(price__lte=max_price)
-            if sort_by in ['price', '-price', 'name', '-name', 'created_at', '-created_at']:
-                queryset = queryset.order_by(sort_by)
+        queryset = Product.objects.filter(is_active=True).select_related('category', 'seller').prefetch_related('images')
         
-        return queryset.select_related('category', 'seller').prefetch_related('images')
+        # Filtres
+        query = self.request.GET.get('q')
+        category_slug = self.request.GET.get('category')
+        min_price = self.request.GET.get('min_price')
+        max_price = self.request.GET.get('max_price')
+        sort_by = self.request.GET.get('sort', '-created_at')
+        
+        if query:
+            queryset = queryset.filter(
+                Q(name__icontains=query) | 
+                Q(description__icontains=query) |
+                Q(category__name__icontains=query)
+            )
+        
+        if category_slug:
+            queryset = queryset.filter(category__slug=category_slug)
+        
+        if min_price:
+            try:
+                queryset = queryset.filter(price__gte=float(min_price))
+            except ValueError:
+                pass
+        
+        if max_price:
+            try:
+                queryset = queryset.filter(price__lte=float(max_price))
+            except ValueError:
+                pass
+        
+        valid_sorts = ['price', '-price', 'name', '-name', 'created_at', '-created_at', 'rating', '-rating']
+        if sort_by in valid_sorts:
+            queryset = queryset.order_by(sort_by)
+        
+        return queryset
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['categories'] = Category.objects.filter(is_active=True)
-        context['search_form'] = ProductSearchForm(self.request.GET, user=self.request.user)
-        # Récupérer l'adresse principale ou celle sélectionnée dans le formulaire
-        context['user_location'] = None
-        if self.request.user.is_authenticated:
-            form = ProductSearchForm(self.request.GET, user=self.request.user)
-            if form.is_valid() and form.cleaned_data.get('location'):
-                context['user_location'] = form.cleaned_data['location']
-            else:
-                context['user_location'] = UserLocation.objects.filter(
-                    user=self.request.user, is_primary=True
-                ).first()
+        context['current_query'] = self.request.GET.get('q', '')
+        context['current_category'] = self.request.GET.get('category', '')
+        context['current_sort'] = self.request.GET.get('sort', '-created_at')
         return context
 
 class ProductDetailView(DetailView):
@@ -65,6 +67,7 @@ class ProductDetailView(DetailView):
     
     def get_object(self):
         product = get_object_or_404(Product, slug=self.kwargs['slug'], is_active=True)
+        # Incrémenter les vues
         product.views += 1
         product.save(update_fields=['views'])
         return product
@@ -72,18 +75,10 @@ class ProductDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         product = self.get_object()
-        context['reviews'] = product.reviews.all()[:10]
         context['related_products'] = Product.objects.filter(
             category=product.category,
             is_active=True
         ).exclude(id=product.id)[:4]
-        context['review_form'] = ReviewForm()
-        # Récupérer l'adresse principale
-        context['user_location'] = None
-        if self.request.user.is_authenticated:
-            context['user_location'] = UserLocation.objects.filter(
-                user=self.request.user, is_primary=True
-            ).first()
         return context
 
 class CategoryListView(ListView):
@@ -99,11 +94,6 @@ class CategoryListView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['category'] = self.category
-        context['user_location'] = None
-        if self.request.user.is_authenticated:
-            context['user_location'] = UserLocation.objects.filter(
-                user=self.request.user, is_primary=True
-            ).first()
         return context
 
 class SellerProductListView(LoginRequiredMixin, ListView):
@@ -112,8 +102,14 @@ class SellerProductListView(LoginRequiredMixin, ListView):
     context_object_name = 'products'
     paginate_by = 20
     
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_seller:
+            messages.error(request, 'Vous devez être vendeur pour accéder à cette page.')
+            return redirect('core:home')
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_queryset(self):
-        return Product.objects.filter(seller=self.request.user).exclude(slug__isnull=True).exclude(slug='')
+        return Product.objects.filter(seller=self.request.user).order_by('-created_at')
 
 class ProductCreateView(LoginRequiredMixin, CreateView):
     model = Product
@@ -124,14 +120,23 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         if not request.user.is_seller:
             messages.error(request, 'Vous devez être vendeur pour ajouter des produits.')
             return redirect('products:list')
+        
+        # Vérifier si le vendeur est vérifié
+        if not hasattr(request.user, 'seller_profile') or not request.user.seller_profile.is_verified:
+            messages.warning(request, 'Votre profil vendeur doit être vérifié pour ajouter des produits.')
+            return redirect('accounts:seller_profile_update')
+        
         return super().dispatch(request, *args, **kwargs)
     
     def form_valid(self, form):
         form.instance.seller = self.request.user
         response = super().form_valid(form)
+        
+        # Traiter les images
         formset = ProductImageFormSet(self.request.POST, self.request.FILES, instance=self.object)
         if formset.is_valid():
             formset.save()
+        
         messages.success(self.request, 'Produit ajouté avec succès!')
         return redirect('products:seller_products')
     
@@ -153,9 +158,12 @@ class ProductUpdateView(LoginRequiredMixin, UpdateView):
     
     def form_valid(self, form):
         response = super().form_valid(form)
+        
+        # Traiter les images
         formset = ProductImageFormSet(self.request.POST, self.request.FILES, instance=self.object)
         if formset.is_valid():
             formset.save()
+        
         messages.success(self.request, 'Produit mis à jour avec succès!')
         return response
     
@@ -174,20 +182,7 @@ class ProductDeleteView(LoginRequiredMixin, DeleteView):
     
     def get_queryset(self):
         return Product.objects.filter(seller=self.request.user)
-
-@login_required
-def add_review(request, slug):
-    product = get_object_or_404(Product, slug=slug)
-    if request.method == 'POST':
-        form = ReviewForm(request.POST)
-        if form.is_valid():
-            review = form.save(commit=False)
-            review.product = product
-            review.user = request.user
-            review.save()
-            avg_rating = product.reviews.aggregate(Avg('rating'))['rating__avg']
-            product.rating = avg_rating or 0
-            product.save()
-            messages.success(request, 'Votre avis a été ajouté avec succès!')
-            return redirect('products:detail', slug=slug)
-    return redirect('products:detail', slug=slug)
+    
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, 'Produit supprimé avec succès!')
+        return super().delete(request, *args, **kwargs)

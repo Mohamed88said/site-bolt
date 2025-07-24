@@ -1,105 +1,186 @@
 {% extends 'base.html' %}
 
-{% block title %}Mes Produits - E-Commerce{% endblock %}
+{% block title %}Mes Produits - {{ site_name }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-boxes"></i> Mes Produits</h2>
-    <a href="{% url 'products:add_product' %}" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Ajouter un produit
-    </a>
-</div>
-
-<div class="row">
-    {% for product in products %}
-    <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100">
-            {% if product.main_image %}
-                <img src="{{ product.main_image.image.url }}" alt="{{ product.name }}" class="card-img-top" style="height: 200px; object-fit: cover;">
-            {% else %}
-                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
-                    <i class="fas fa-image fa-3x text-muted"></i>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-boxes me-2"></i>Mes Produits</h2>
+            <p class="text-muted">Gérez votre catalogue de produits</p>
+        </div>
+        <a href="{% url 'products:add_product' %}" class="btn btn-primary btn-lg">
+            <i class="fas fa-plus me-2"></i>Ajouter un produit
+        </a>
+    </div>
+    
+    {% if products %}
+    <!-- Statistiques rapides -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ products|length }}</h3>
+                    <p class="mb-0">Produits total</p>
                 </div>
-            {% endif %}
-            
-            <div class="card-body d-flex flex-column">
-                <h5 class="card-title">{{ product.name }}</h5>
-                <p class="card-text text-muted">{{ product.short_description|truncatewords:15 }}</p>
-                
-                <div class="mt-auto">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div class="price">
-                            {% if product.discount_price %}
-                                <span class="text-danger fw-bold">{{ product.discount_price }}€</span>
-                                <span class="text-muted text-decoration-line-through">{{ product.price }}€</span>
-                            {% else %}
-                                <span class="text-primary fw-bold">{{ product.price }}€</span>
-                            {% endif %}
-                        </div>
-                        <span class="badge bg-{% if product.is_active %}success{% else %}danger{% endif %}">
-                            {% if product.is_active %}Actif{% else %}Inactif{% endif %}
-                        </span>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <small class="text-muted">Stock: {{ product.stock }}</small>
-                        <small class="text-muted">{{ product.views }} vues</small>
-                    </div>
-                    
-                    <div class="d-flex gap-2">
-                        {% if product.slug %}
-                            <a href="{{ product.get_absolute_url }}" class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-eye"></i> Voir
-                            </a>
-                        {% else %}
-                            <button class="btn btn-outline-primary btn-sm" disabled title="Slug manquant">
-                                <i class="fas fa-eye"></i> Voir
-                            </button>
-                        {% endif %}
-                        <a href="{% url 'products:edit_product' product.slug %}" class="btn btn-outline-warning btn-sm">
-                            <i class="fas fa-edit"></i> Modifier
-                        </a>
-                        <a href="{% url 'products:delete_product' product.slug %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')">
-                            <i class="fas fa-trash"></i> Supprimer
-                        </a>
-                    </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>{{ products|length }}</h3>
+                    <p class="mb-0">Produits actifs</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h3>0</h3>
+                    <p class="mb-0">Stock faible</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>0</h3>
+                    <p class="mb-0">Vues totales</p>
                 </div>
             </div>
         </div>
     </div>
-    {% empty %}
-    <div class="col-12">
-        <div class="text-center py-5">
-            <i class="fas fa-boxes fa-3x text-muted mb-3"></i>
-            <h4>Aucun produit</h4>
-            <p class="text-muted">Vous n'avez pas encore ajouté de produits.</p>
-            <a href="{% url 'products:add_product' %}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Ajouter votre premier produit
-            </a>
+    
+    <!-- Liste des produits -->
+    <div class="row">
+        {% for product in products %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="position-relative">
+                    {% if product.main_image %}
+                        <img src="{{ product.main_image.image.url }}" alt="{{ product.name }}" 
+                             class="card-img-top" style="height: 200px; object-fit: cover;">
+                    {% else %}
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                            <i class="fas fa-image fa-3x text-muted"></i>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Badges -->
+                    <div class="position-absolute top-0 start-0 p-2">
+                        {% if not product.is_active %}
+                            <span class="badge bg-danger">Inactif</span>
+                        {% endif %}
+                        {% if product.is_featured %}
+                            <span class="badge bg-warning">Vedette</span>
+                        {% endif %}
+                        {% if product.stock <= 5 %}
+                            <span class="badge bg-danger">Stock faible</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">{{ product.name }}</h5>
+                    <p class="card-text text-muted">{{ product.short_description|truncatewords:15 }}</p>
+                    
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="price">
+                                {% if product.discount_price %}
+                                    <span class="text-danger fw-bold">{{ product.discount_price|floatformat:0 }} GNF</span>
+                                    <br><span class="text-muted text-decoration-line-through">{{ product.price|floatformat:0 }} GNF</span>
+                                {% else %}
+                                    <span class="text-primary fw-bold">{{ product.price|floatformat:0 }} GNF</span>
+                                {% endif %}
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">Stock: {{ product.stock }}</small>
+                                <br><small class="text-muted">{{ product.views }} vues</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-2">
+                        {% if product.seller_pays_delivery %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-truck me-1"></i>Livraison incluse
+                            </span>
+                        {% else %}
+                            <span class="badge bg-info">
+                                <i class="fas fa-user me-1"></i>Acheteur paie livraison
+                            </span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mt-auto">
+                        <div class="d-flex gap-2">
+                            {% if product.slug %}
+                                <a href="{{ product.get_absolute_url }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-eye"></i> Voir
+                                </a>
+                            {% endif %}
+                            <a href="{% url 'products:edit_product' product.slug %}" class="btn btn-outline-warning btn-sm">
+                                <i class="fas fa-edit"></i> Modifier
+                            </a>
+                            <a href="{% url 'products:delete_product' product.slug %}" 
+                               class="btn btn-outline-danger btn-sm" 
+                               onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')">
+                                <i class="fas fa-trash"></i> Supprimer
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Pagination">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Précédent</a>
+                </li>
+            {% endif %}
+            
+            <li class="page-item active">
+                <span class="page-link">{{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>
+            </li>
+            
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Suivant</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+    
+    {% else %}
+    <!-- État vide -->
+    <div class="text-center py-5">
+        <i class="fas fa-boxes fa-5x text-muted mb-4"></i>
+        <h3>Aucun produit</h3>
+        <p class="text-muted mb-4">Vous n'avez pas encore ajouté de produits à votre boutique.</p>
+        <a href="{% url 'products:add_product' %}" class="btn btn-primary btn-lg">
+            <i class="fas fa-plus me-2"></i>Ajouter votre premier produit
+        </a>
+        
+        <div class="mt-4">
+            <div class="alert alert-info">
+                <h5><i class="fas fa-lightbulb me-2"></i>Conseils pour commencer</h5>
+                <ul class="text-start mb-0">
+                    <li>Ajoutez des photos de qualité</li>
+                    <li>Rédigez des descriptions détaillées</li>
+                    <li>Fixez des prix compétitifs</li>
+                    <li>Choisissez si vous prenez en charge la livraison</li>
+                </ul>
+            </div>
         </div>
     </div>
-    {% endfor %}
+    {% endif %}
 </div>
-
-{% if is_paginated %}
-<nav aria-label="Pagination">
-    <ul class="pagination justify-content-center">
-        {% if page_obj.has_previous %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Précédent</a>
-            </li>
-        {% endif %}
-        
-        <li class="page-item active">
-            <span class="page-link">{{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>
-        </li>
-        
-        {% if page_obj.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Suivant</a>
-            </li>
-        {% endif %}
-    </ul>
-</nav>
-{% endif %}
 {% endblock %}

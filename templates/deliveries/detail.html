@@ -1,144 +1,169 @@
 {% extends 'base.html' %}
-{% load i18n %}
+{% load static %}
 
-{% block title %}{% trans "Livraison #" %}{{ delivery.tracking_number }} - E-Commerce{% endblock %}
+{% block title %}Livraison {{ delivery.tracking_number }} - {{ site_name }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-truck"></i> {% trans "Livraison #" %}{{ delivery.tracking_number }}</h2>
-    <span class="badge bg-{% if delivery.status == 'completed' %}success{% elif delivery.status == 'cancelled' %}danger{% elif delivery.status == 'in_progress' %}info{% else %}warning{% endif %} fs-6">
-        {{ delivery.get_status_display }}
-    </span>
-</div>
-
-{% if delivery.order.payment and delivery.order.payment.qr_code_image %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-truck me-2"></i>Livraison {{ delivery.tracking_number }}</h2>
+            <p class="text-muted">Commande #{{ delivery.order.id|slice:":8" }} - {{ delivery.created_at|date:"d/m/Y à H:i" }}</p>
+        </div>
+        <span class="badge bg-{% if delivery.status == 'completed' %}success{% elif delivery.status == 'cancelled' %}danger{% elif delivery.status == 'in_progress' %}info{% else %}warning{% endif %} fs-5">
+            {{ delivery.get_status_display }}
+        </span>
+    </div>
+    
+    <!-- QR Code pour le paiement -->
+    {% if delivery.order.payment and delivery.order.payment.qr_code_image %}
     <div class="card mb-4">
-        <div class="card-header">
-            <h5><i class="fas fa-qrcode"></i> {% trans "QR Code pour le paiement" %}</h5>
+        <div class="card-header bg-primary text-white">
+            <h5><i class="fas fa-qrcode me-2"></i>QR Code de paiement</h5>
         </div>
         <div class="card-body">
-            <img src="{{ delivery.order.payment.qr_code_image.url }}" alt="{% trans 'QR Code de paiement' %}" class="img-fluid mb-3" style="max-width: 200px;">
-            <p>
-                {% trans "Code de confirmation :" %} <strong>{{ delivery.order.payment.confirmation_code }}</strong><br>
-                {% trans "À la livraison, l'acheteur scannera ce QR code ou entrera ce code pour confirmer le paiement en espèces." %}
-            </p>
-            {% if user.is_seller %}
-                <a href="{% url 'deliveries:share_qr_code' delivery_id=delivery.id %}" class="btn btn-primary">
-                    <i class="fas fa-share"></i> {% trans "Transmettre le QR code au livreur" %}
-                </a>
-            {% endif %}
-            {% if user.is_delivery and delivery.order.payment.payment_method == 'cash_on_delivery' %}
-                <p>{% trans "Présentez ce QR code à l'acheteur pour qu'il le scanne ou entre le code de confirmation à la livraison." %}</p>
-            {% endif %}
+            <div class="row">
+                <div class="col-md-3 text-center">
+                    <img src="{{ delivery.order.payment.qr_code_image.url }}" alt="QR Code" 
+                         class="img-fluid" style="max-width: 200px;">
+                </div>
+                <div class="col-md-9">
+                    <h6>Instructions pour le livreur :</h6>
+                    <ol>
+                        <li>Présentez ce QR code à l'acheteur</li>
+                        <li>L'acheteur scanne avec son téléphone</li>
+                        <li>Il choisit son mode de paiement (espèces, Mobile Money, carte)</li>
+                        <li>Il entre le code de confirmation : <strong class="text-primary">{{ delivery.order.payment.confirmation_code }}</strong></li>
+                        <li>Le paiement est finalisé</li>
+                    </ol>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Important :</strong> 
+                        {% if delivery.paid_by == 'seller' %}
+                            Les frais de livraison ({{ delivery.delivery_cost|floatformat:0 }} GNF) sont à la charge du vendeur.
+                        {% else %}
+                            L'acheteur doit payer les frais de livraison ({{ delivery.delivery_cost|floatformat:0 }} GNF) en plus de sa commande.
+                        {% endif %}
+                    </div>
+                    
+                    {% if user.is_seller %}
+                    <a href="{% url 'deliveries:share_qr_code' delivery.id %}" class="btn btn-success">
+                        <i class="fas fa-share me-2"></i>Partager avec le livreur
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
-{% endif %}
-
-<div class="row">
-    <div class="col-md-8">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5><i class="fas fa-info-circle"></i> {% trans "Informations de livraison" %}</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>{% trans "Commande :" %}</strong> #{{ delivery.order.id|slice:":8" }}</p>
-                        <p><strong>{% trans "Client :" %}</strong> {{ delivery.order.user.get_full_name|default:delivery.order.user.username }}</p>
-                        <p><strong>{% trans "Téléphone :" %}</strong> {{ delivery.order.shipping_phone|default:"Non renseigné" }}</p>
-                        {% if delivery.delivery_person %}
-                            <p><strong>{% trans "Livreur :" %}</strong> {{ delivery.delivery_person.username }}</p>
-                            {% if delivery.delivery_person.delivery_person_profile %}
-                                <p><strong>{% trans "Véhicule :" %}</strong> {{ delivery.delivery_person.delivery_person_profile.get_vehicle_type_display }}</p>
-                                <p><strong>{% trans "Plaque :" %}</strong> {{ delivery.delivery_person.delivery_person_profile.license_plate|default:"Non renseignée" }}</p>
-                            {% endif %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong>{% trans "Coût de livraison :" %}</strong> {{ delivery.delivery_cost }}€</p>
-                        {% if delivery.delivery_zone %}
-                            <p><strong>{% trans "Zone de livraison :" %}</strong> {{ delivery.delivery_zone.name }}</p>
-                            <p><strong>{% trans "Délai estimé :" %}</strong> {{ delivery.delivery_zone.estimated_delivery_days }} {% trans "jour" %}{{ delivery.delivery_zone.estimated_delivery_days|pluralize }}</p>
-                        {% endif %}
-                        <p><strong>{% trans "Créée le :" %}</strong> {{ delivery.created_at|date:"d/m/Y à H:i" }}</p>
-                        {% if delivery.estimated_delivery_time %}
-                            <p><strong>{% trans "Livraison estimée :" %}</strong> {{ delivery.estimated_delivery_time|date:"d/m/Y à H:i" }}</p>
-                        {% endif %}
-                        {% if delivery.actual_delivery_time %}
-                            <p><strong>{% trans "Livrée le :" %}</strong> {{ delivery.actual_delivery_time|date:"d/m/Y à H:i" }}</p>
-                        {% endif %}
-                    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Informations de livraison -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle me-2"></i>Informations de livraison</h5>
                 </div>
-                
-                {% if delivery.delivery_notes %}
-                <div class="mt-3">
-                    <strong>{% trans "Notes de livraison :" %}</strong>
-                    <p class="mt-2">{{ delivery.delivery_notes }}</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5><i class="fas fa-map-marker-alt"></i> {% trans "Adresse de livraison" %}</h5>
-                {% if user == delivery.order.user and delivery.status == 'pending' %}
-                    <a href="{% url 'deliveries:select_location' delivery_id=delivery.id %}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-edit"></i> {% trans "Modifier l'adresse" %}
-                    </a>
-                {% endif %}
-            </div>
-            <div class="card-body">
-                {% if delivery.location_point %}
-                    <div class="mb-3">
-                        <p><strong>{{ delivery.location_point.name }}</strong></p>
-                        <p>{{ delivery.location_point.full_address }}</p>
-                        <p><strong>{% trans "Coordonnées :" %}</strong> {{ delivery.location_point.latitude }}, {{ delivery.location_point.longitude }}</p>
-                        {% if delivery.location_point.landmark %}
-                            <p><i class="fas fa-map-pin me-2"></i>{{ delivery.location_point.landmark }}</p>
-                        {% endif %}
-                        {% if delivery.location_point.access_instructions %}
-                            <p><i class="fas fa-route me-2"></i>{{ delivery.location_point.access_instructions }}</p>
-                        {% endif %}
-                        <a href="{{ delivery.location_point.google_maps_url }}" target="_blank" class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-external-link-alt me-1"></i>{% trans "Voir sur Google Maps" %}
-                        </a>
-                    </div>
-                {% else %}
-                    <address>
-                        {{ delivery.order.shipping_first_name }} {{ delivery.order.shipping_last_name }}<br>
-                        {{ delivery.order.shipping_address }}<br>
-                        {{ delivery.order.shipping_postal_code }} {{ delivery.order.shipping_city }}<br>
-                        {{ delivery.order.shipping_country }}
-                    </address>
-                {% endif %}
-                
-                {% if user_locations %}
-                    <div class="mt-3">
-                        <h6>{% trans "Autres adresses enregistrées :" %}</h6>
-                        {% for location in user_locations %}
-                            <div class="location-card p-3 mb-2">
-                                <p><strong>{{ location.location_point.name }}</strong> {% if location.is_primary %}(Principale){% endif %}</p>
-                                <p>{{ location.location_point.full_address }}</p>
-                                <a href="{% url 'geolocation:location_detail' location_id=location.location_point.id %}" class="btn btn-outline-secondary btn-sm">
-                                    <i class="fas fa-eye"></i> {% trans "Détails" %}
-                                </a>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <strong>Client :</strong> {{ delivery.order.user.get_full_name|default:delivery.order.user.username }}
+                                <br><small class="text-muted">{{ delivery.order.user.email }}</small>
+                                {% if delivery.order.shipping_phone %}
+                                    <br><a href="tel:{{ delivery.order.shipping_phone }}" class="text-decoration-none">
+                                        <i class="fas fa-phone me-1"></i>{{ delivery.order.shipping_phone }}
+                                    </a>
+                                {% endif %}
                             </div>
-                        {% endfor %}
+                            
+                            {% if delivery.delivery_person %}
+                            <div class="mb-3">
+                                <strong>Livreur :</strong> {{ delivery.delivery_person.username }}
+                                {% if delivery.delivery_person.delivery_profile %}
+                                    <br><small class="text-muted">{{ delivery.delivery_person.delivery_profile.get_vehicle_type_display }}</small>
+                                    {% if delivery.delivery_person.delivery_profile.phone %}
+                                        <br><a href="tel:{{ delivery.delivery_person.delivery_profile.phone }}" class="text-decoration-none">
+                                            <i class="fas fa-phone me-1"></i>{{ delivery.delivery_person.delivery_profile.phone }}
+                                        </a>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <strong>Coût de livraison :</strong> {{ delivery.delivery_cost|floatformat:0 }} GNF
+                                <br><small class="text-muted">Payé par {{ delivery.get_paid_by_display|lower }}</small>
+                            </div>
+                            
+                            {% if distance_km %}
+                            <div class="mb-3">
+                                <strong>Distance :</strong> {{ distance_km }} km
+                                <br><small class="text-muted">Distance estimée</small>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="mb-3">
+                                <strong>Créée le :</strong> {{ delivery.created_at|date:"d/m/Y à H:i" }}
+                                {% if delivery.estimated_delivery_time %}
+                                    <br><strong>Livraison estimée :</strong> {{ delivery.estimated_delivery_time|date:"d/m/Y à H:i" }}
+                                {% endif %}
+                                {% if delivery.actual_delivery_time %}
+                                    <br><strong>Livrée le :</strong> {{ delivery.actual_delivery_time|date:"d/m/Y à H:i" }}
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
-                {% endif %}
+                    
+                    {% if delivery.delivery_notes %}
+                    <div class="mt-3">
+                        <strong>Notes de livraison :</strong>
+                        <p class="mt-2">{{ delivery.delivery_notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-boxes"></i> {% trans "Informations sur la livraison" %}</h5>
+            
+            <!-- Adresse de livraison -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-map-marker-alt me-2"></i>Adresse de livraison</h5>
+                </div>
+                <div class="card-body">
+                    {% if delivery.location_point %}
+                        <div class="mb-3">
+                            <h6>{{ delivery.location_point.name }}</h6>
+                            <p class="text-muted">{{ delivery.location_point.full_address }}</p>
+                            <p><strong>Coordonnées :</strong> {{ delivery.location_point.latitude }}, {{ delivery.location_point.longitude }}</p>
+                            {% if delivery.location_point.landmark %}
+                                <p><i class="fas fa-map-pin me-2"></i><strong>Point de repère :</strong> {{ delivery.location_point.landmark }}</p>
+                            {% endif %}
+                            {% if delivery.location_point.access_instructions %}
+                                <p><i class="fas fa-route me-2"></i><strong>Instructions d'accès :</strong> {{ delivery.location_point.access_instructions }}</p>
+                            {% endif %}
+                            <a href="{{ delivery.location_point.google_maps_url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-external-link-alt me-1"></i>Voir sur Google Maps
+                            </a>
+                        </div>
+                    {% else %}
+                        <address>
+                            {{ delivery.order.shipping_first_name }} {{ delivery.order.shipping_last_name }}<br>
+                            {{ delivery.order.shipping_address }}<br>
+                            {{ delivery.order.shipping_postal_code }} {{ delivery.order.shipping_city }}<br>
+                            {{ delivery.order.shipping_country }}
+                        </address>
+                    {% endif %}
+                </div>
             </div>
-            <div class="card-body">
-                {% if user.is_delivery %}
-                    <p><strong>{% trans "Nombre d'articles :" %}</strong> {{ delivery.order.items.count }}</p>
-                    <p><strong>{% trans "Vendeur :" %}</strong> {{ delivery.order.items.first.product.seller.username }}</p>
-                {% else %}
+            
+            <!-- Articles de la commande -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-boxes me-2"></i>Articles à livrer</h5>
+                </div>
+                <div class="card-body">
                     {% for item in delivery.order.items.all %}
                     <div class="d-flex align-items-center border-bottom py-3">
                         <div class="me-3">
@@ -154,157 +179,149 @@
                         </div>
                         <div class="flex-grow-1">
                             <h6 class="mb-1">{{ item.product.name }}</h6>
-                            <small class="text-muted">{% trans "Quantité :" %} {{ item.quantity }} - {% trans "Prix :" %} {{ item.price }}€</small>
-                            <br>
-                            <small class="text-muted">{% trans "Vendeur :" %} {{ item.product.seller.username }}</small>
+                            <small class="text-muted">Quantité : {{ item.quantity }} - Prix : {{ item.price|floatformat:0 }} GNF</small>
+                            <br><small class="text-muted">Vendeur : {{ item.product.seller.username }}</small>
                         </div>
-                        <div>
-                            <strong>{{ item.total_price }}€</strong>
+                        <div class="text-end">
+                            <strong>{{ item.total_price|floatformat:0 }} GNF</strong>
                         </div>
                     </div>
                     {% endfor %}
+                    
                     <div class="d-flex justify-content-between align-items-center mt-3">
-                        <strong>{% trans "Total articles :" %}</strong>
-                        <strong>{{ delivery.order.total_amount }}€</strong>
+                        <strong>Total articles :</strong>
+                        <strong>{{ delivery.order.total_amount|floatformat:0 }} GNF</strong>
                     </div>
-                {% endif %}
-            </div>
-        </div>
-        
-        {% if user.is_seller and delivery.order.items.first.product.seller == user %}
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5><i class="fas fa-user-tie"></i> {% trans "Actions du vendeur" %}</h5>
-            </div>
-            <div class="card-body">
-                {% if delivery.status == 'pending' and not delivery.delivery_person %}
-                    <a href="{% url 'geolocation:delivery_person_map' delivery_id=delivery.id %}" class="btn btn-primary mb-2 w-100">
-                        <i class="fas fa-map-marker-alt me-2"></i>{% trans "Choisir un livreur" %}
-                    </a>
-                {% endif %}
-                {% if delivery.status == 'pending' %}
-                    <a href="{% url 'deliveries:confirm_delivery_cost' delivery_id=delivery.id %}" class="btn btn-outline-primary mb-2 w-100">
-                        <i class="fas fa-money-bill-wave me-2"></i>{% trans "Confirmer le prix de livraison" %}
-                    </a>
-                {% endif %}
-                {% if delivery.status == 'pending' %}
-                    <a href="{% url 'deliveries:negotiate' delivery_id=delivery.id %}" class="btn btn-outline-primary mb-2 w-100">
-                        <i class="fas fa-handshake me-2"></i>{% trans "Négocier avec un livreur" %}
-                    </a>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
-    </div>
-    
-    <div class="col-md-4">
-        {% if user.is_delivery and delivery.delivery_person == user %}
-        <div class="card mb-3">
-            <div class="card-header">
-                <h6><i class="fas fa-tasks"></i> {% trans "Actions livreur" %}</h6>
-            </div>
-            <div class="card-body">
-                {% if delivery.status == 'assigned' %}
-                <a href="{% url 'deliveries:start' delivery_id=delivery.id %}" class="btn btn-success w-100 mb-2">
-                    <i class="fas fa-play me-2"></i>{% trans "Démarrer la livraison" %}
-                </a>
-                {% elif delivery.status == 'in_progress' %}
-                <a href="{% url 'deliveries:complete' delivery_id=delivery.id %}" class="btn btn-primary w-100 mb-2">
-                    <i class="fas fa-check me-2"></i>{% trans "Marquer comme livrée" %}
-                </a>
-                {% endif %}
-                {% if delivery.order.payment and delivery.order.payment.status == 'pending_delivery_confirmation' %}
-                    <a href="{% url 'payments:confirm_cash_payment' payment_id=delivery.order.payment.id %}" class="btn btn-success w-100 mb-2">
-                        <i class="fas fa-money-bill-wave me-2"></i>{% trans "Confirmer le paiement en espèces" %}
-                    </a>
-                {% endif %}
-                <button class="btn btn-outline-secondary w-100" onclick="contactCustomer()">
-                    <i class="fas fa-phone me-2"></i>{% trans "Contacter le client" %}
-                </button>
-            </div>
-        </div>
-        {% endif %}
-        
-        {% if delivery.status == 'completed' and user == delivery.order.user and not delivery.rating %}
-        <div class="card mb-3">
-            <div class="card-header">
-                <h6><i class="fas fa-star"></i> {% trans "Évaluer la livraison" %}</h6>
-            </div>
-            <div class="card-body">
-                <a href="{% url 'deliveries:rate' delivery_id=delivery.id %}" class="btn btn-warning w-100">
-                    <i class="fas fa-star me-2"></i>{% trans "Noter le livreur" %}
-                </a>
-            </div>
-        </div>
-        {% endif %}
-        
-        {% if delivery.rating %}
-        <div class="card mb-3">
-            <div class="card-header">
-                <h6><i class="fas fa-star"></i> {% trans "Évaluation" %}</h6>
-            </div>
-            <div class="card-body">
-                <div class="rating mb-2">
-                    {% for i in "12345" %}
-                        {% if delivery.rating.rating >= i|add:0 %}
-                            <i class="fas fa-star text-warning"></i>
-                        {% else %}
-                            <i class="far fa-star text-muted"></i>
-                        {% endif %}
-                    {% endfor %}
-                    <span class="ms-2">{{ delivery.rating.rating }}/5</span>
                 </div>
-                {% if delivery.rating.comment %}
-                    <p class="mb-0">{{ delivery.rating.comment }}</p>
-                {% endif %}
-                <small class="text-muted">{% trans "Par" %} {{ delivery.rating.created_by.username }} {% trans "le" %} {{ delivery.rating.created_at|date:"d/m/Y" }}</small>
             </div>
         </div>
-        {% endif %}
         
-        <div class="card">
-            <div class="card-header">
-                <h6><i class="fas fa-info-circle"></i> {% trans "Informations" %}</h6>
+        <div class="col-lg-4">
+            <!-- Actions selon le type d'utilisateur -->
+            {% if user.is_seller and delivery.order.items.first.product.seller == user %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-user-tie me-2"></i>Actions vendeur</h6>
+                </div>
+                <div class="card-body">
+                    {% if delivery.status == 'pending' and not delivery.delivery_person %}
+                        <a href="{% url 'deliveries:delivery_map' delivery.id %}" class="btn btn-primary w-100 mb-2">
+                            <i class="fas fa-map-marker-alt me-2"></i>Choisir un livreur
+                        </a>
+                    {% endif %}
+                    
+                    {% if delivery.order.payment and delivery.order.payment.qr_code_image %}
+                        <a href="{% url 'deliveries:share_qr_code' delivery.id %}" class="btn btn-success w-100 mb-2">
+                            <i class="fas fa-qrcode me-2"></i>Partager QR Code
+                        </a>
+                    {% endif %}
+                </div>
             </div>
-            <div class="card-body">
-                <div class="mb-2">
-                    <small class="text-muted">{% trans "Numéro de suivi :" %}</small>
-                    <br>
-                    <strong>{{ delivery.tracking_number }}</strong>
+            {% endif %}
+            
+            {% if user.is_delivery and delivery.delivery_person == user %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-tasks me-2"></i>Actions livreur</h6>
                 </div>
-                
-                {% if delivery.requests.exists %}
-                <div class="mb-2">
-                    <small class="text-muted">{% trans "Demandes reçues :" %}</small>
-                    <br>
-                    <strong>{{ delivery.requests.count }}</strong>
+                <div class="card-body">
+                    {% if delivery.status == 'assigned' %}
+                        <a href="{% url 'deliveries:start' delivery.id %}" class="btn btn-success w-100 mb-2">
+                            <i class="fas fa-play me-2"></i>Démarrer la livraison
+                        </a>
+                    {% elif delivery.status == 'in_progress' %}
+                        <a href="{% url 'deliveries:complete' delivery.id %}" class="btn btn-primary w-100 mb-2">
+                            <i class="fas fa-check me-2"></i>Marquer comme livrée
+                        </a>
+                    {% endif %}
+                    
+                    {% if delivery.order.shipping_phone %}
+                        <a href="tel:{{ delivery.order.shipping_phone }}" class="btn btn-outline-primary w-100 mb-2">
+                            <i class="fas fa-phone me-2"></i>Contacter le client
+                        </a>
+                    {% endif %}
                 </div>
-                {% endif %}
-                
-                <div class="text-center mt-3">
+            </div>
+            {% endif %}
+            
+            {% if user == delivery.order.user and delivery.status == 'completed' and not delivery.rating %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-star me-2"></i>Évaluer la livraison</h6>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'deliveries:rate' delivery.id %}" class="btn btn-warning w-100">
+                        <i class="fas fa-star me-2"></i>Noter le livreur
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Évaluation existante -->
+            {% if delivery.rating %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-star me-2"></i>Évaluation</h6>
+                </div>
+                <div class="card-body">
+                    <div class="rating mb-2">
+                        {% for i in "12345" %}
+                            {% if delivery.rating.rating >= i|add:0 %}
+                                <i class="fas fa-star text-warning"></i>
+                            {% else %}
+                                <i class="far fa-star text-muted"></i>
+                            {% endif %}
+                        {% endfor %}
+                        <span class="ms-2">{{ delivery.rating.rating }}/5</span>
+                    </div>
+                    {% if delivery.rating.comment %}
+                        <p class="mb-2">{{ delivery.rating.comment }}</p>
+                    {% endif %}
                     <small class="text-muted">
-                        <i class="fas fa-shield-alt me-1"></i>{% trans "Livraison assurée" %}
+                        Par {{ delivery.rating.created_by.username }} le {{ delivery.rating.created_at|date:"d/m/Y" }}
                     </small>
                 </div>
             </div>
+            {% endif %}
+            
+            <!-- Informations générales -->
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-info-circle me-2"></i>Informations</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <small class="text-muted">Numéro de suivi :</small>
+                        <br><strong>{{ delivery.tracking_number }}</strong>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <small class="text-muted">Coût de livraison :</small>
+                        <br><strong>{{ delivery.delivery_cost|floatformat:0 }} GNF</strong>
+                        <br><small class="text-info">Payé par {{ delivery.get_paid_by_display|lower }}</small>
+                    </div>
+                    
+                    {% if delivery.requests.exists %}
+                    <div class="mb-2">
+                        <small class="text-muted">Demandes reçues :</small>
+                        <br><strong>{{ delivery.requests.count }}</strong>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-shield-alt me-1"></i>Livraison assurée
+                        </small>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+    
+    <div class="mt-4">
+        <a href="{% url 'deliveries:list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Retour aux livraisons
+        </a>
+    </div>
 </div>
-
-<div class="mt-4">
-    <a href="{% url 'deliveries:list' %}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left"></i> {% trans "Retour aux livraisons" %}
-    </a>
-</div>
-
-<script>
-function contactCustomer() {
-    const phone = "{{ delivery.order.shipping_phone|escapejs }}";
-    if (phone) {
-        window.open(`tel:${phone}`);
-    } else {
-        alert('{% trans "Numéro de téléphone non disponible" %}'); 
-    }
-}
-</script>
 {% endblock %}

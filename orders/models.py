@@ -35,7 +35,7 @@ class Order(models.Model):
     shipping_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     
-    # Shipping address
+    # Adresse de livraison
     shipping_first_name = models.CharField(max_length=100)
     shipping_last_name = models.CharField(max_length=100)
     shipping_address = models.TextField()
@@ -44,7 +44,7 @@ class Order(models.Model):
     shipping_country = models.CharField(max_length=100)
     shipping_phone = models.CharField(max_length=20, blank=True)
     
-    # Billing address
+    # Adresse de facturation
     billing_first_name = models.CharField(max_length=100)
     billing_last_name = models.CharField(max_length=100)
     billing_address = models.TextField()
@@ -52,7 +52,7 @@ class Order(models.Model):
     billing_postal_code = models.CharField(max_length=10)
     billing_country = models.CharField(max_length=100)
     
-    # Payment info
+    # Informations de paiement
     payment_method = models.CharField(max_length=50, blank=True)
     payment_id = models.CharField(max_length=100, blank=True)
     
@@ -79,10 +79,6 @@ class Order(models.Model):
     @property
     def full_shipping_address(self):
         return f"{self.shipping_address}, {self.shipping_city} {self.shipping_postal_code}, {self.shipping_country}"
-    
-    def get_shipping_location(self):
-        """Retourne le LocationPoint associé à la commande ou None si non défini"""
-        return self.location_point
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')

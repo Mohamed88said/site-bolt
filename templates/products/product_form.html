@@ -1,86 +1,389 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
+{% load static %}
 
-{% block title %}{% if object %}Modifier{% else %}Ajouter{% endif %} un produit - E-Commerce{% endblock %}
+{% block title %}{% if object %}Modifier{% else %}Ajouter{% endif %} un produit - {{ site_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.product-form-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.form-section {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.delivery-options {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.image-preview {
+    max-width: 150px;
+    max-height: 150px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 2px solid #ddd;
+}
+
+.formset-row {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border: 1px solid #e9ecef;
+}
+
+.delete-checkbox {
+    background: #ffe6e6;
+    border: 1px solid #ff9999;
+    border-radius: 5px;
+    padding: 10px;
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-10">
-        <div class="card">
-            <div class="card-header">
-                <h4>
-                    <i class="fas fa-{% if object %}edit{% else %}plus{% endif %}"></i>
-                    {% if object %}Modifier le produit{% else %}Ajouter un produit{% endif %}
+<div class="container py-4">
+    <div class="product-form-container">
+        <div class="text-center mb-4">
+            <h2>
+                <i class="fas fa-{% if object %}edit{% else %}plus{% endif %} me-2"></i>
+                {% if object %}Modifier le produit{% else %}Ajouter un nouveau produit{% endif %}
+            </h2>
+            <p class="text-muted">
+                {% if object %}
+                    Modifiez les informations de votre produit
+                {% else %}
+                    Créez un nouveau produit pour votre boutique
+                {% endif %}
+            </p>
+        </div>
+        
+        <form method="post" enctype="multipart/form-data" id="product-form">
+            {% csrf_token %}
+            
+            <!-- Informations générales -->
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="fas fa-info-circle me-2"></i>Informations générales
                 </h4>
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nom du produit *</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="text-danger small">{{ form.name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Description courte *</label>
+                            {{ form.short_description }}
+                            <small class="text-muted">Résumé attractif de votre produit (max 300 caractères)</small>
+                            {% if form.short_description.errors %}
+                                <div class="text-danger small">{{ form.short_description.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Description détaillée *</label>
+                            {{ form.description }}
+                            <small class="text-muted">Description complète avec toutes les caractéristiques</small>
+                            {% if form.description.errors %}
+                                <div class="text-danger small">{{ form.description.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Catégorie *</label>
+                            {{ form.category }}
+                            {% if form.category.errors %}
+                                <div class="text-danger small">{{ form.category.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Code produit (SKU) *</label>
+                            {{ form.sku }}
+                            <small class="text-muted">Code unique pour identifier votre produit</small>
+                            {% if form.sku.errors %}
+                                <div class="text-danger small">{{ form.sku.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <form method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    
-                    <div class="row">
-                        <div class="col-md-8">
-                            <h5>Informations générales</h5>
-                            {{ form.name|as_crispy_field }}
-                            {{ form.short_description|as_crispy_field }}
-                            {{ form.description|as_crispy_field }}
-                            {{ form.category|as_crispy_field }}
-                        </div>
-                        <div class="col-md-4">
-                            <h5>Prix et stock</h5>
-                            {{ form.price|as_crispy_field }}
-                            {{ form.discount_price|as_crispy_field }}
-                            {{ form.stock|as_crispy_field }}
-                            {{ form.sku|as_crispy_field }}
+            
+            <!-- Prix et stock -->
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="fas fa-tags me-2"></i>Prix et stock
+                </h4>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Prix (GNF) *</label>
+                            {{ form.price }}
+                            {% if form.price.errors %}
+                                <div class="text-danger small">{{ form.price.errors.0 }}</div>
+                            {% endif %}
                         </div>
                     </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5>Caractéristiques</h5>
-                            {{ form.weight|as_crispy_field }}
-                            {{ form.dimensions|as_crispy_field }}
-                        </div>
-                        <div class="col-md-6">
-                            <h5>Options</h5>
-                            {{ form.is_active|as_crispy_field }}
-                            {{ form.is_featured|as_crispy_field }}
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Prix réduit (GNF)</label>
+                            {{ form.discount_price }}
+                            <small class="text-muted">Optionnel - pour les promotions</small>
+                            {% if form.discount_price.errors %}
+                                <div class="text-danger small">{{ form.discount_price.errors.0 }}</div>
+                            {% endif %}
                         </div>
                     </div>
-                    
-                    <hr>
-                    
-                    <h5>Images du produit</h5>
-                    <div id="image-formset">
-                        {{ formset.management_form }}
-                        {% for form in formset %}
-                            <div class="image-form border p-3 mb-3 rounded">
-                                {% if form.instance.pk %}
-                                    <div class="row">
-                                        <div class="col-md-3">
-                                            <img src="{{ form.instance.image.url }}" alt="Image" class="img-thumbnail" style="max-height: 100px;">
-                                        </div>
-                                        <div class="col-md-9">
-                                            {{ form|crispy }}
-                                        </div>
-                                    </div>
-                                {% else %}
-                                    {{ form|crispy }}
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Stock *</label>
+                            {{ form.stock }}
+                            {% if form.stock.errors %}
+                                <div class="text-danger small">{{ form.stock.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Poids (kg)</label>
+                            {{ form.weight }}
+                            <small class="text-muted">Pour calculer les frais de port</small>
+                            {% if form.weight.errors %}
+                                <div class="text-danger small">{{ form.weight.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Dimensions</label>
+                            {{ form.dimensions }}
+                            <small class="text-muted">Exemple: 20 x 15 x 10 cm</small>
+                            {% if form.dimensions.errors %}
+                                <div class="text-danger small">{{ form.dimensions.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Options de livraison -->
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="fas fa-truck me-2"></i>Options de livraison
+                </h4>
+                <div class="delivery-options">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                {{ form.seller_pays_delivery }}
+                                <label class="form-check-label fw-bold" for="{{ form.seller_pays_delivery.id_for_label }}">
+                                    Je prends en charge les frais de livraison
+                                </label>
+                                <small class="d-block text-muted">
+                                    Si coché, vous payez la livraison. Sinon, c'est l'acheteur qui paie.
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3" id="delivery-price-field" style="display: none;">
+                                <label class="form-label fw-bold">Prix avec livraison incluse (GNF)</label>
+                                {{ form.delivery_included_price }}
+                                <small class="text-muted">Prix total incluant la livraison</small>
+                                {% if form.delivery_included_price.errors %}
+                                    <div class="text-danger small">{{ form.delivery_included_price.errors.0 }}</div>
                                 {% endif %}
                             </div>
-                        {% endfor %}
+                        </div>
                     </div>
                     
-                    <div class="d-flex justify-content-between">
-                        <a href="{% url 'products:seller_products' %}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i> Retour
-                        </a>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> {% if object %}Modifier{% else %}Ajouter{% endif %}
-                        </button>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Comment ça marche :</strong>
+                        <ul class="mb-0 mt-2">
+                            <li><strong>Vous payez :</strong> Le prix affiché inclut la livraison, vous négociez avec le livreur</li>
+                            <li><strong>Acheteur paie :</strong> L'acheteur paie le produit + frais de livraison séparément</li>
+                        </ul>
                     </div>
-                </form>
+                </div>
             </div>
-        </div>
+            
+            <!-- Images du produit -->
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="fas fa-images me-2"></i>Images du produit
+                </h4>
+                <p class="text-muted mb-3">Ajoutez jusqu'à 10 images de votre produit. La première image sera l'image principale.</p>
+                
+                <div id="image-formset">
+                    {{ formset.management_form }}
+                    {% for form in formset %}
+                        <div class="formset-row">
+                            <div class="row align-items-center">
+                                <div class="col-md-3">
+                                    {% if form.instance.pk and form.instance.image %}
+                                        <img src="{{ form.instance.image.url }}" alt="Image" class="image-preview">
+                                    {% else %}
+                                        <div class="image-preview bg-light d-flex align-items-center justify-content-center">
+                                            <i class="fas fa-image fa-2x text-muted"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label class="form-label">Image</label>
+                                        {{ form.image }}
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Description</label>
+                                        {{ form.alt_text }}
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                {{ form.is_main }}
+                                                <label class="form-check-label">Image principale</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label">Ordre</label>
+                                            {{ form.order }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    {% if form.instance.pk %}
+                                        <div class="delete-checkbox">
+                                            {{ form.DELETE }}
+                                            <label class="form-check-label text-danger">
+                                                <i class="fas fa-trash me-1"></i>Supprimer
+                                            </label>
+                                        </div>
+                                    {% endif %}
+                                    {{ form.id }}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Options avancées -->
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="fas fa-cogs me-2"></i>Options avancées
+                </h4>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-check mb-3">
+                            {{ form.is_active }}
+                            <label class="form-check-label fw-bold" for="{{ form.is_active.id_for_label }}">
+                                Produit actif
+                            </label>
+                            <small class="d-block text-muted">Le produit sera visible sur le site</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check mb-3">
+                            {{ form.is_featured }}
+                            <label class="form-check-label fw-bold" for="{{ form.is_featured.id_for_label }}">
+                                Produit mis en avant
+                            </label>
+                            <small class="d-block text-muted">Apparaîtra dans les produits vedettes</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Boutons d'action -->
+            <div class="form-section">
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'products:seller_products' %}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>Retour à mes produits
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>
+                        {% if object %}Modifier le produit{% else %}Créer le produit{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sellerPaysCheckbox = document.getElementById('{{ form.seller_pays_delivery.id_for_label }}');
+    const deliveryPriceField = document.getElementById('delivery-price-field');
+    
+    function toggleDeliveryPrice() {
+        if (sellerPaysCheckbox.checked) {
+            deliveryPriceField.style.display = 'block';
+        } else {
+            deliveryPriceField.style.display = 'none';
+        }
+    }
+    
+    sellerPaysCheckbox.addEventListener('change', toggleDeliveryPrice);
+    toggleDeliveryPrice(); // Initial call
+    
+    // Auto-generate SKU if empty
+    const nameField = document.getElementById('{{ form.name.id_for_label }}');
+    const skuField = document.getElementById('{{ form.sku.id_for_label }}');
+    
+    nameField.addEventListener('blur', function() {
+        if (!skuField.value && nameField.value) {
+            const sku = nameField.value.toUpperCase()
+                .replace(/[^A-Z0-9]/g, '')
+                .substring(0, 10) + '-' + Date.now().toString().slice(-4);
+            skuField.value = sku;
+        }
+    });
+    
+    // Form validation
+    document.getElementById('product-form').addEventListener('submit', function(e) {
+        const price = parseFloat(document.getElementById('{{ form.price.id_for_label }}').value);
+        const discountPrice = parseFloat(document.getElementById('{{ form.discount_price.id_for_label }}').value);
+        
+        if (discountPrice && discountPrice >= price) {
+            e.preventDefault();
+            alert('Le prix réduit doit être inférieur au prix normal.');
+            return false;
+        }
+        
+        if (sellerPaysCheckbox.checked) {
+            const deliveryIncludedPrice = parseFloat(document.getElementById('{{ form.delivery_included_price.id_for_label }}').value);
+            if (!deliveryIncludedPrice || deliveryIncludedPrice <= price) {
+                e.preventDefault();
+                alert('Le prix avec livraison incluse doit être supérieur au prix du produit.');
+                return false;
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

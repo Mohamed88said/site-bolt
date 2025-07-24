@@ -1,240 +1,443 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
-{% load i18n %}
+{% load static %}
 
-{% block title %}{% trans "Commande - E-Commerce" %}{% endblock %}
+{% block title %}Finaliser ma commande - {{ site_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.checkout-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.checkout-section {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.address-option {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.address-option:hover {
+    border-color: var(--primary-color);
+}
+
+.address-option.selected {
+    border-color: var(--primary-color);
+    background: rgba(212, 175, 55, 0.1);
+}
+
+.order-summary {
+    background: #f8f9fa;
+    border-radius: 15px;
+    padding: 20px;
+    position: sticky;
+    top: 20px;
+}
+
+.cart-item {
+    border-bottom: 1px solid #e9ecef;
+    padding: 15px 0;
+}
+
+.cart-item:last-child {
+    border-bottom: none;
+}
+
+.guinea-flag {
+    background: linear-gradient(to right, #ff0000, #ffff00, #00ff00);
+    height: 4px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<h2><i class="fas fa-credit-card"></i> {% trans "Finaliser ma commande" %}</h2>
-
-{% if messages %}
-    <div class="alert alert-dismissible">
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-    </div>
-{% endif %}
-
-{% if not request.POST or not form.is_valid %}
-    <div class="row">
-        <div class="col-md-8">
-            <form method="post">
-                {% csrf_token %}
-                
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5><i class="fas fa-truck"></i> {% trans "Adresse de livraison" %}</h5>
-                    </div>
-                    <div class="card-body">
-                        {{ form.location_type|as_crispy_field }}
+<div class="container py-4">
+    <div class="checkout-container">
+        <div class="guinea-flag"></div>
+        
+        <div class="text-center mb-4">
+            <h2><i class="fas fa-credit-card me-2"></i>Finaliser ma commande</h2>
+            <p class="text-muted">Vérifiez vos informations et confirmez votre commande</p>
+        </div>
+        
+        <div class="row">
+            <div class="col-lg-8">
+                <form method="post" id="checkout-form">
+                    {% csrf_token %}
+                    
+                    <!-- Adresse de livraison -->
+                    <div class="checkout-section">
+                        <h4 class="section-title">
+                            <i class="fas fa-truck me-2"></i>Adresse de livraison
+                        </h4>
                         
-                        <div id="existing-address" class="{% if form.location_type.value != 'existing' %}d-none{% endif %}">
-                            {{ form.location_id|as_crispy_field }}
-                            <a href="{% url 'geolocation:location_picker' %}?next={% url 'orders:checkout' %}" class="btn btn-outline-success btn-sm mb-3">
-                                <i class="fas fa-plus-circle"></i> {% trans "Ajouter une nouvelle adresse via la carte" %}
-                            </a>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="location_type" value="existing" id="existing" checked>
+                                <label class="form-check-label fw-bold" for="existing">
+                                    Utiliser une adresse enregistrée
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="location_type" value="manual" id="manual">
+                                <label class="form-check-label fw-bold" for="manual">
+                                    Saisir une nouvelle adresse
+                                </label>
+                            </div>
                         </div>
                         
-                        <div id="manual-address" class="{% if form.location_type.value == 'existing' %}d-none{% endif %}">
+                        <!-- Adresses existantes -->
+                        <div id="existing-addresses">
+                            {% if form.location_id.field.queryset %}
+                                {% for location in form.location_id.field.queryset %}
+                                <div class="address-option" data-location-id="{{ location.id }}">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="location_id" value="{{ location.id }}" id="location_{{ location.id }}">
+                                        <label class="form-check-label" for="location_{{ location.id }}">
+                                            <strong>{{ location.location_point.name }}</strong>
+                                            {% if location.is_primary %}<span class="badge bg-primary ms-2">Principale</span>{% endif %}
+                                            <br>
+                                            <span class="text-muted">{{ location.location_point.full_address }}</span>
+                                            {% if location.location_point.landmark %}
+                                                <br><small class="text-info"><i class="fas fa-map-pin me-1"></i>{{ location.location_point.landmark }}</small>
+                                            {% endif %}
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                
+                                <div class="text-center mt-3">
+                                    <a href="{% url 'geolocation:location_picker' %}?next={% url 'orders:checkout' %}" class="btn btn-outline-success">
+                                        <i class="fas fa-plus me-2"></i>Ajouter une nouvelle adresse
+                                    </a>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Vous n'avez pas d'adresse enregistrée. 
+                                    <a href="{% url 'geolocation:location_picker' %}?next={% url 'orders:checkout' %}" class="alert-link">
+                                        Cliquez ici pour en ajouter une
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Adresse manuelle -->
+                        <div id="manual-address" style="display: none;">
                             <div class="row">
                                 <div class="col-md-6">
-                                    {{ form.shipping_first_name|as_crispy_field }}
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Prénom *</label>
+                                        {{ form.shipping_first_name }}
+                                    </div>
                                 </div>
                                 <div class="col-md-6">
-                                    {{ form.shipping_last_name|as_crispy_field }}
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Nom *</label>
+                                        {{ form.shipping_last_name }}
+                                    </div>
                                 </div>
                             </div>
-                            {{ form.shipping_address|as_crispy_field }}
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Adresse complète *</label>
+                                {{ form.shipping_address }}
+                            </div>
                             <div class="row">
                                 <div class="col-md-6">
-                                    {{ form.shipping_city|as_crispy_field }}
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Ville *</label>
+                                        {{ form.shipping_city }}
+                                    </div>
                                 </div>
                                 <div class="col-md-3">
-                                    {{ form.shipping_postal_code|as_crispy_field }}
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Code postal</label>
+                                        {{ form.shipping_postal_code }}
+                                    </div>
                                 </div>
                                 <div class="col-md-3">
-                                    {{ form.shipping_country|as_crispy_field }}
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Pays</label>
+                                        {{ form.shipping_country }}
+                                    </div>
                                 </div>
                             </div>
-                            {{ form.shipping_phone|as_crispy_field }}
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Téléphone</label>
+                                {{ form.shipping_phone }}
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5><i class="fas fa-file-invoice"></i> {% trans "Adresse de facturation" %}</h5>
-                    </div>
-                    <div class="card-body">
+                    
+                    <!-- Adresse de facturation -->
+                    <div class="checkout-section">
+                        <h4 class="section-title">
+                            <i class="fas fa-file-invoice me-2"></i>Adresse de facturation
+                        </h4>
+                        
                         <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" id="sameAddress" onchange="copyShippingAddress()">
-                            <label class="form-check-label" for="sameAddress">
-                                {% trans "Identique à l'adresse de livraison" %}
+                            <input class="form-check-input" type="checkbox" id="same-address">
+                            <label class="form-check-label fw-bold" for="same-address">
+                                Identique à l'adresse de livraison
                             </label>
                         </div>
                         
-                        <div class="row">
-                            <div class="col-md-6">
-                                {{ form.billing_first_name|as_crispy_field }}
+                        <div id="billing-fields">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Prénom *</label>
+                                        {{ form.billing_first_name }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Nom *</label>
+                                        {{ form.billing_last_name }}
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                {{ form.billing_last_name|as_crispy_field }}
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Adresse *</label>
+                                {{ form.billing_address }}
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Ville *</label>
+                                        {{ form.billing_city }}
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Code postal</label>
+                                        {{ form.billing_postal_code }}
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Pays</label>
+                                        {{ form.billing_country }}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        {{ form.billing_address|as_crispy_field }}
-                        <div class="row">
-                            <div class="col-md-6">
-                                {{ form.billing_city|as_crispy_field }}
-                            </div>
-                            <div class="col-md-3">
-                                {{ form.billing_postal_code|as_crispy_field }}
-                            </div>
-                            <div class="col-md-3">
-                                {{ form.billing_country|as_crispy_field }}
-                            </div>
+                    </div>
+                    
+                    <!-- Mode de paiement -->
+                    <div class="checkout-section">
+                        <h4 class="section-title">
+                            <i class="fas fa-money-bill me-2"></i>Mode de paiement
+                        </h4>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-qrcode me-2"></i>
+                            <strong>Paiement à la livraison</strong>
+                            <p class="mb-0">Un QR code sera généré pour votre commande. Le livreur vous le fera scanner pour choisir votre mode de paiement final (espèces, Mobile Money, carte, etc.)</p>
+                        </div>
+                        
+                        {{ form.payment_method }}
+                    </div>
+                    
+                    <!-- Notes -->
+                    <div class="checkout-section">
+                        <h4 class="section-title">
+                            <i class="fas fa-comment me-2"></i>Instructions spéciales
+                        </h4>
+                        {{ form.notes }}
+                    </div>
+                    
+                    <!-- Boutons -->
+                    <div class="checkout-section">
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'cart:detail' %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-arrow-left me-2"></i>Retour au panier
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check me-2"></i>Confirmer la commande
+                            </button>
                         </div>
                     </div>
-                </div>
-                
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5><i class="fas fa-money-bill"></i> {% trans "Mode de paiement" %}</h5>
-                    </div>
-                    <div class="card-body">
-                        {{ form.payment_method|as_crispy_field }}
-                        <p class="text-muted"><small>{% trans "Le paiement sera effectué en espèces à la livraison." %}</small></p>
-                    </div>
-                </div>
-                
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5><i class="fas fa-comment"></i> {% trans "Notes (optionnel)" %}</h5>
-                    </div>
-                    <div class="card-body">
-                        {{ form.notes|as_crispy_field }}
-                    </div>
-                </div>
-                
-                <div class="d-flex justify-content-between">
-                    <a href="{% url 'cart:detail' %}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> {% trans "Retour au panier" %}
-                    </a>
-                    <button type="submit" class="btn btn-primary btn-lg">
-                        <i class="fas fa-check"></i> {% trans "Confirmer la commande" %}
-                    </button>
-                </div>
-            </form>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="fas fa-shopping-cart"></i> {% trans "Votre commande" %}</h5>
-                </div>
-                <div class="card-body">
+                </form>
+            </div>
+            
+            <!-- Résumé de commande -->
+            <div class="col-lg-4">
+                <div class="order-summary">
+                    <h5><i class="fas fa-shopping-cart me-2"></i>Votre commande</h5>
+                    
                     {% for item in cart.items.all %}
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div>
-                            <small>{{ item.product.name }}</small>
-                            <br>
-                            <small class="text-muted">{% trans "Qté:" %} {{ item.quantity }}</small>
+                    <div class="cart-item">
+                        <div class="d-flex align-items-center">
+                            {% if item.product.main_image %}
+                                <img src="{{ item.product.main_image.image.url }}" alt="{{ item.product.name }}" 
+                                     class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                            {% endif %}
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ item.product.name }}</h6>
+                                <small class="text-muted">Qté: {{ item.quantity }}</small>
+                                {% if item.product.seller_pays_delivery %}
+                                    <br><small class="text-success"><i class="fas fa-truck me-1"></i>Livraison incluse</small>
+                                {% endif %}
+                            </div>
+                            <div class="text-end">
+                                <strong>{{ item.total_price|floatformat:0 }} GNF</strong>
+                            </div>
                         </div>
-                        <span>{{ item.total_price }}€</span>
                     </div>
                     {% endfor %}
                     
                     <hr>
                     
                     <div class="d-flex justify-content-between mb-2">
-                        <span>{% trans "Sous-total:" %}</span>
-                        <span>{{ cart.total_price }}€</span>
+                        <span>Sous-total:</span>
+                        <span>{{ cart.total_price|floatformat:0 }} GNF</span>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
-                        <span>{% trans "Livraison:" %}</span>
-                        <span>{% trans "À confirmer après sélection du livreur" %}</span>
+                        <span>Livraison:</span>
+                        <span class="text-muted">À définir avec le livreur</span>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
-                        <span>{% trans "TVA (20%):" %}</span>
-                        <span>{{ tax_amount|floatformat:2 }}€</span>
+                        <span>TVA (20%):</span>
+                        <span>{{ tax_amount|floatformat:0 }} GNF</span>
                     </div>
                     
                     <hr>
                     
                     <div class="d-flex justify-content-between">
-                        <strong>{% trans "Total:" %}</strong>
-                        <strong>{{ total_with_tax|floatformat:2 }}€</strong>
+                        <strong>Total:</strong>
+                        <strong>{{ total_with_tax|floatformat:0 }} GNF</strong>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <div class="alert alert-success">
+                            <i class="fas fa-shield-alt me-2"></i>
+                            <small><strong>Paiement sécurisé</strong><br>QR code généré pour paiement à la livraison</small>
+                        </div>
                     </div>
                 </div>
             </div>
-            
-            <div class="card mt-3">
-                <div class="card-body text-center">
-                    <i class="fas fa-money-bill-wave fa-2x text-success mb-2"></i>
-                    <p class="mb-0"><small>{% trans "Paiement en espèces à la livraison" %}</small></p>
-                </div>
-            </div>
         </div>
     </div>
-{% else %}
-    <div class="card">
-        <div class="card-header">
-            <h5><i class="fas fa-check-circle"></i> {% trans "Commande confirmée" %}</h5>
-        </div>
-        <div class="card-body">
-            <p>{% trans "Merci pour votre commande ! Vous allez maintenant choisir un livreur." %}</p>
-            <a href="{% url 'deliveries:select_delivery_person' delivery_id=order.delivery.id %}" class="btn btn-primary">
-                <i class="fas fa-map-marker-alt"></i> {% trans "Choisir un livreur" %}
-            </a>
-        </div>
-    </div>
-{% endif %}
+</div>
 
 <script>
-function copyShippingAddress() {
-    const checkbox = document.getElementById('sameAddress');
-    const locationType = document.querySelector('input[name="location_type"]:checked').value;
-    
-    const shippingFields = ['first_name', 'last_name', 'address', 'city', 'postal_code', 'country'];
-    
-    if (locationType === 'existing') {
-        shippingFields.forEach(field => {
-            const billingField = document.getElementById(`id_billing_${field}`);
-            billingField.disabled = checkbox.checked;
-        });
-        alert('{% trans "Veuillez saisir manuellement l\'adresse de facturation ou décocher la case." %}');
-    } else {
-        shippingFields.forEach(field => {
-            const shippingField = document.getElementById(`id_shipping_${field}`);
-            const billingField = document.getElementById(`id_billing_${field}`);
-            
-            if (checkbox.checked) {
-                billingField.value = shippingField.value;
-                billingField.disabled = true;
-            } else {
-                billingField.disabled = false;
-            }
-        });
-    }
-}
-
-function toggleAddressFields() {
-    const locationType = document.querySelector('input[name="location_type"]:checked').value;
-    const existingAddress = document.getElementById('existing-address');
+document.addEventListener('DOMContentLoaded', function() {
+    const existingRadio = document.getElementById('existing');
+    const manualRadio = document.getElementById('manual');
+    const existingAddresses = document.getElementById('existing-addresses');
     const manualAddress = document.getElementById('manual-address');
+    const sameAddressCheckbox = document.getElementById('same-address');
+    const billingFields = document.getElementById('billing-fields');
     
-    if (locationType === 'existing') {
-        existingAddress.classList.remove('d-none');
-        manualAddress.classList.add('d-none');
-    } else {
-        existingAddress.classList.add('d-none');
-        manualAddress.classList.remove('d-none');
+    function toggleAddressType() {
+        if (existingRadio.checked) {
+            existingAddresses.style.display = 'block';
+            manualAddress.style.display = 'none';
+        } else {
+            existingAddresses.style.display = 'none';
+            manualAddress.style.display = 'block';
+        }
     }
-}
-
-document.querySelectorAll('input[name="location_type"]').forEach(radio => {
-    radio.addEventListener('change', toggleAddressFields);
+    
+    function toggleBillingFields() {
+        if (sameAddressCheckbox.checked) {
+            billingFields.style.display = 'none';
+            // Copier les données de livraison vers facturation
+            copyShippingToBilling();
+        } else {
+            billingFields.style.display = 'block';
+        }
+    }
+    
+    function copyShippingToBilling() {
+        if (manualRadio.checked) {
+            const shippingFields = ['first_name', 'last_name', 'address', 'city', 'postal_code', 'country'];
+            shippingFields.forEach(field => {
+                const shippingField = document.querySelector(`[name="shipping_${field}"]`);
+                const billingField = document.querySelector(`[name="billing_${field}"]`);
+                if (shippingField && billingField) {
+                    billingField.value = shippingField.value;
+                }
+            });
+        }
+    }
+    
+    // Event listeners
+    existingRadio.addEventListener('change', toggleAddressType);
+    manualRadio.addEventListener('change', toggleAddressType);
+    sameAddressCheckbox.addEventListener('change', toggleBillingFields);
+    
+    // Address option selection
+    document.querySelectorAll('.address-option').forEach(option => {
+        option.addEventListener('click', function() {
+            document.querySelectorAll('.address-option').forEach(opt => opt.classList.remove('selected'));
+            this.classList.add('selected');
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+        });
+    });
+    
+    // Form validation
+    document.getElementById('checkout-form').addEventListener('submit', function(e) {
+        if (existingRadio.checked) {
+            const selectedLocation = document.querySelector('input[name="location_id"]:checked');
+            if (!selectedLocation) {
+                e.preventDefault();
+                alert('Veuillez sélectionner une adresse de livraison.');
+                return false;
+            }
+        }
+        
+        if (manualRadio.checked) {
+            const requiredFields = ['shipping_first_name', 'shipping_last_name', 'shipping_address', 'shipping_city'];
+            for (let field of requiredFields) {
+                const input = document.querySelector(`[name="${field}"]`);
+                if (!input.value.trim()) {
+                    e.preventDefault();
+                    alert('Veuillez remplir tous les champs obligatoires de l\'adresse de livraison.');
+                    input.focus();
+                    return false;
+                }
+            }
+        }
+        
+        if (!sameAddressCheckbox.checked) {
+            const requiredBillingFields = ['billing_first_name', 'billing_last_name', 'billing_address', 'billing_city'];
+            for (let field of requiredBillingFields) {
+                const input = document.querySelector(`[name="${field}"]`);
+                if (!input.value.trim()) {
+                    e.preventDefault();
+                    alert('Veuillez remplir tous les champs obligatoires de l\'adresse de facturation.');
+                    input.focus();
+                    return false;
+                }
+            }
+        }
+    });
+    
+    // Initial setup
+    toggleAddressType();
+    toggleBillingFields();
 });
-
-document.addEventListener('DOMContentLoaded', toggleAddressFields);
 </script>
 {% endblock %}

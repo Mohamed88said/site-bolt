@@ -6,11 +6,13 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
 from django.http import JsonResponse
 from django.urls import reverse
-from .models import Delivery, DeliveryRequest, DeliveryRating
-from .forms import DeliveryRequestForm, DeliveryRatingForm
-from geolocation.models import UserLocation, LocationPoint
-from notifications.models import Notification
 from django.utils import timezone
+from django.views.decorators.http import require_POST
+
+from .models import Delivery, DeliveryRequest, DeliveryRating, DeliveryPerson
+from .forms import DeliveryRequestForm, DeliveryRatingForm
+from accounts.models import User
+from notifications.models import Notification
 
 class DeliveryListView(LoginRequiredMixin, ListView):
     model = Delivery
@@ -22,11 +24,8 @@ class DeliveryListView(LoginRequiredMixin, ListView):
         queryset = Delivery.objects.select_related('order', 'delivery_person', 'location_point')
         
         if self.request.user.user_type == 'delivery':
-            # Livreur voit ses livraisons + celles disponibles
-            queryset = queryset.filter(
-                Q(delivery_person=self.request.user) |
-                Q(status='pending', delivery_person__isnull=True)
-            )
+            # Livreur voit ses livraisons
+            queryset = queryset.filter(delivery_person=self.request.user)
         elif self.request.user.user_type == 'buyer':
             # Acheteur voit ses livraisons
             queryset = queryset.filter(order__user=self.request.user)
@@ -45,12 +44,11 @@ class DeliveryDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         delivery = self.get_object()
         
-        # Ajouter les informations de distance si possible
-        if delivery.location_point:
-            seller = delivery.order.items.first().product.seller if delivery.order.items.exists() else None
-            if seller and hasattr(seller, 'seller_profile') and seller.seller_profile.location_point:
-                distance = seller.seller_profile.location_point.calculate_distance_to(delivery.location_point)
-                context['distance_km'] = round(distance, 2) if distance else None
+        # Calculer la distance si possible
+        distance = delivery.calculate_distance_to_seller()
+        if distance:
+            context['distance_km'] = round(distance, 2)
+            context['estimated_cost'] = delivery.calculate_delivery_cost()
         
         return context
 
@@ -64,23 +62,21 @@ def available_deliveries(request):
     deliveries = Delivery.objects.filter(
         status='pending',
         delivery_person__isnull=True
-    ).select_related('order', 'location_point')
+    ).select_related('order', 'location_point').prefetch_related('requests')
     
     return render(request, 'deliveries/available.html', {'deliveries': deliveries})
 
 @login_required
 def delivery_map(request, delivery_id):
-    """Carte pour choisir un livreur"""
+    """Carte pour choisir un livreur (vendeur)"""
     delivery = get_object_or_404(Delivery, id=delivery_id)
     
     # Vérifier les permissions
     if request.user.user_type == 'seller':
-        # Vérifier que c'est le vendeur du produit
         if not delivery.order.items.filter(product__seller=request.user).exists():
             messages.error(request, "Vous n'avez pas accès à cette livraison.")
             return redirect('deliveries:list')
     elif request.user.user_type == 'buyer':
-        # Vérifier que c'est l'acheteur
         if delivery.order.user != request.user:
             messages.error(request, "Vous n'avez pas accès à cette livraison.")
             return redirect('deliveries:list')
@@ -89,34 +85,42 @@ def delivery_map(request, delivery_id):
         return redirect('deliveries:list')
     
     # Trouver les livreurs disponibles
-    available_delivery_persons = []
-    if delivery.location_point:
-        # Tous les livreurs avec profil vérifié
-        from accounts.models import User
-        delivery_users = User.objects.filter(
-            user_type='delivery',
-            delivery_profile__verification_status='approved',
-            delivery_profile__is_available=True
-        ).select_related('delivery_profile')
+    delivery_persons = User.objects.filter(
+        user_type='delivery',
+        delivery_profile__verification_status='approved',
+        delivery_profile__is_available=True
+    ).select_related('delivery_profile')
+    
+    # Enrichir avec les informations de distance et demandes existantes
+    delivery_persons_data = []
+    for person in delivery_persons:
+        # Calculer la distance si possible
+        distance = None
+        if delivery.location_point and hasattr(person, 'delivery_person_profile') and person.delivery_person_profile.location_point:
+            distance = delivery.location_point.calculate_distance_to(person.delivery_person_profile.location_point)
         
-        for delivery_user in delivery_users:
-            # Calculer la distance si possible
-            distance = None
-            if hasattr(delivery_user, 'delivery_profile') and delivery_user.delivery_profile.location_point:
-                distance = delivery.location_point.calculate_distance_to(delivery_user.delivery_profile.location_point)
-            
-            available_delivery_persons.append({
-                'user': delivery_user,
-                'distance': round(distance, 2) if distance else None,
-                'existing_request': DeliveryRequest.objects.filter(
-                    delivery=delivery, 
-                    delivery_person=delivery_user
-                ).first()
-            })
+        # Vérifier s'il y a une demande existante
+        existing_request = DeliveryRequest.objects.filter(
+            delivery=delivery,
+            delivery_person=person
+        ).first()
+        
+        delivery_persons_data.append({
+            'id': person.id,
+            'username': person.username,
+            'full_name': person.get_full_name(),
+            'phone_number': getattr(person.delivery_profile, 'phone', person.phone),
+            'vehicle_type': getattr(person.delivery_profile, 'vehicle_type', 'Non spécifié'),
+            'rating': getattr(person.delivery_profile, 'rating', 0),
+            'distance': round(distance, 2) if distance else None,
+            'latitude': float(person.delivery_person_profile.location_point.latitude) if hasattr(person, 'delivery_person_profile') and person.delivery_person_profile.location_point else 9.6412,
+            'longitude': float(person.delivery_person_profile.location_point.longitude) if hasattr(person, 'delivery_person_profile') and person.delivery_person_profile.location_point else -13.5784,
+            'existing_request': existing_request,
+        })
     
     context = {
         'delivery': delivery,
-        'available_delivery_persons': available_delivery_persons,
+        'delivery_persons': delivery_persons_data,
         'delivery_location': delivery.location_point,
     }
     
@@ -124,7 +128,7 @@ def delivery_map(request, delivery_id):
 
 @login_required
 def request_delivery(request, delivery_id):
-    """Faire une demande de livraison"""
+    """Faire une demande de livraison (livreur)"""
     if request.user.user_type != 'delivery':
         messages.error(request, 'Vous devez être livreur.')
         return redirect('deliveries:list')
@@ -162,7 +166,7 @@ def request_delivery(request, delivery_id):
             messages.success(request, 'Votre demande a été envoyée au vendeur.')
             return redirect('deliveries:detail', pk=delivery_id)
     else:
-        # Calculer un coût proposé basé sur la distance
+        # Calculer un coût proposé
         proposed_cost = delivery.calculate_delivery_cost()
         form = DeliveryRequestForm(initial={'proposed_cost': proposed_cost})
     
@@ -172,8 +176,9 @@ def request_delivery(request, delivery_id):
     })
 
 @login_required
+@require_POST
 def accept_delivery_request(request, request_id):
-    """Accepter une demande de livraison"""
+    """Accepter une demande de livraison (vendeur)"""
     delivery_request = get_object_or_404(DeliveryRequest, id=request_id)
     delivery = delivery_request.delivery
     
@@ -201,7 +206,7 @@ def accept_delivery_request(request, request_id):
     Notification.objects.create(
         user=delivery_request.delivery_person,
         title='Livraison assignée',
-        message=f'Votre demande pour la livraison #{delivery.tracking_number} a été acceptée.',
+        message=f'Votre demande pour la livraison {delivery.tracking_number} a été acceptée.',
         notification_type='delivery_accepted',
         url=reverse('deliveries:detail', kwargs={'pk': delivery.id})
     )
@@ -209,13 +214,71 @@ def accept_delivery_request(request, request_id):
     return JsonResponse({'success': True})
 
 @login_required
+def assign_delivery_person(request, delivery_id):
+    """Assigner directement un livreur avec proposition de prix (vendeur)"""
+    if request.method == 'POST':
+        delivery = get_object_or_404(Delivery, id=delivery_id)
+        
+        # Vérifier que c'est le vendeur
+        if not delivery.order.items.filter(product__seller=request.user).exists():
+            return JsonResponse({'success': False, 'error': 'Non autorisé'})
+        
+        delivery_person_id = request.POST.get('delivery_person_id')
+        proposed_cost = request.POST.get('proposed_cost')
+        paid_by = request.POST.get('paid_by', 'buyer')
+        
+        delivery_person = get_object_or_404(User, id=delivery_person_id, user_type='delivery')
+        
+        # Créer ou mettre à jour la demande
+        delivery_request, created = DeliveryRequest.objects.get_or_create(
+            delivery=delivery,
+            delivery_person=delivery_person,
+            defaults={
+                'proposed_cost': proposed_cost,
+                'message': f'Proposition directe du vendeur: {proposed_cost} GNF'
+            }
+        )
+        
+        if not created:
+            delivery_request.proposed_cost = proposed_cost
+            delivery_request.save()
+        
+        # Mettre à jour qui paie
+        delivery.paid_by = paid_by
+        delivery.save()
+        
+        # Notifier le livreur
+        Notification.objects.create(
+            user=delivery_person,
+            title='Proposition de livraison',
+            message=f'Le vendeur vous propose une livraison pour {proposed_cost} GNF.',
+            notification_type='delivery_request',
+            url=reverse('deliveries:detail', kwargs={'pk': delivery.id})
+        )
+        
+        messages.success(request, f'Proposition envoyée à {delivery_person.username}')
+        return redirect('deliveries:delivery_map', delivery_id=delivery_id)
+    
+    return redirect('deliveries:list')
+
+@login_required
 def start_delivery(request, delivery_id):
-    """Démarrer une livraison"""
+    """Démarrer une livraison (livreur)"""
     delivery = get_object_or_404(Delivery, id=delivery_id, delivery_person=request.user)
     
     if delivery.status == 'assigned':
         delivery.status = 'in_progress'
         delivery.save()
+        
+        # Notifier l'acheteur
+        Notification.objects.create(
+            user=delivery.order.user,
+            title='Livraison en cours',
+            message=f'Votre livraison {delivery.tracking_number} a été prise en charge.',
+            notification_type='order_shipped',
+            url=reverse('orders:detail', kwargs={'pk': delivery.order.id})
+        )
+        
         messages.success(request, 'Livraison démarrée.')
     else:
         messages.error(request, 'Cette livraison ne peut pas être démarrée.')
@@ -224,7 +287,7 @@ def start_delivery(request, delivery_id):
 
 @login_required
 def complete_delivery(request, delivery_id):
-    """Terminer une livraison"""
+    """Terminer une livraison (livreur)"""
     delivery = get_object_or_404(Delivery, id=delivery_id, delivery_person=request.user)
     
     if delivery.status == 'in_progress':
@@ -236,6 +299,15 @@ def complete_delivery(request, delivery_id):
         delivery.order.status = 'delivered'
         delivery.order.save()
         
+        # Notifier l'acheteur
+        Notification.objects.create(
+            user=delivery.order.user,
+            title='Livraison terminée',
+            message=f'Votre commande {delivery.tracking_number} a été livrée avec succès.',
+            notification_type='order_delivered',
+            url=reverse('orders:detail', kwargs={'pk': delivery.order.id})
+        )
+        
         messages.success(request, 'Livraison terminée avec succès.')
     else:
         messages.error(request, 'Cette livraison ne peut pas être terminée.')
@@ -244,11 +316,15 @@ def complete_delivery(request, delivery_id):
 
 @login_required
 def rate_delivery(request, delivery_id):
-    """Noter une livraison"""
+    """Noter une livraison (acheteur)"""
     delivery = get_object_or_404(Delivery, id=delivery_id, order__user=request.user)
     
     if delivery.status != 'completed':
         messages.error(request, 'Vous ne pouvez noter que les livraisons terminées.')
+        return redirect('deliveries:detail', pk=delivery_id)
+    
+    if hasattr(delivery, 'rating'):
+        messages.info(request, 'Vous avez déjà noté cette livraison.')
         return redirect('deliveries:detail', pk=delivery_id)
     
     if request.method == 'POST':
@@ -259,6 +335,13 @@ def rate_delivery(request, delivery_id):
             rating.created_by = request.user
             rating.save()
             
+            # Mettre à jour la note moyenne du livreur
+            if delivery.delivery_person and hasattr(delivery.delivery_person, 'delivery_profile'):
+                ratings = DeliveryRating.objects.filter(delivery__delivery_person=delivery.delivery_person)
+                avg_rating = ratings.aggregate(models.Avg('rating'))['rating__avg']
+                delivery.delivery_person.delivery_profile.rating = avg_rating or 0
+                delivery.delivery_person.delivery_profile.save()
+            
             messages.success(request, 'Votre évaluation a été enregistrée.')
             return redirect('deliveries:detail', pk=delivery_id)
     else:
@@ -268,3 +351,33 @@ def rate_delivery(request, delivery_id):
         'form': form,
         'delivery': delivery
     })
+
+@login_required
+def share_qr_code(request, delivery_id):
+    """Partager le QR code avec le livreur (vendeur)"""
+    delivery = get_object_or_404(Delivery, id=delivery_id)
+    
+    # Vérifier que c'est le vendeur
+    if not delivery.order.items.filter(product__seller=request.user).exists():
+        messages.error(request, "Vous n'avez pas accès à cette livraison.")
+        return redirect('deliveries:list')
+    
+    payment = delivery.order.payment
+    
+    if request.method == 'POST':
+        # Simuler l'envoi d'email au livreur
+        if delivery.delivery_person:
+            # Ici vous pourriez intégrer un vrai système d'email
+            messages.success(request, f'QR code envoyé à {delivery.delivery_person.username}')
+        else:
+            messages.error(request, 'Aucun livreur assigné à cette livraison.')
+        
+        return redirect('deliveries:detail', pk=delivery_id)
+    
+    context = {
+        'delivery': delivery,
+        'payment': payment,
+        'order': delivery.order,
+    }
+    
+    return render(request, 'deliveries/qr_code_share.html', context)
