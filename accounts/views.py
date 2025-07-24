@@ -7,6 +7,7 @@ from django.views.generic import CreateView, UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Avg
 from django.core.paginator import Paginator
+from deliveries.models import Delivery
 
 from .models import User, SellerProfile, DeliveryProfile
 from .forms import UserRegistrationForm, UserUpdateForm, SellerProfileForm, DeliveryProfileForm
@@ -41,6 +42,13 @@ def seller_dashboard(request):
         items__product__seller=request.user
     ).distinct().order_by('-created_at')[:10]
     
+    # Livraisons en attente d'assignation
+    pending_deliveries = Delivery.objects.filter(
+        order__items__product__seller=request.user,
+        status='pending',
+        delivery_person__isnull=True
+    ).distinct()[:5]
+    
     # Produits en rupture de stock
     low_stock_products = request.user.products.filter(
         stock__lte=5, is_active=True
@@ -54,6 +62,7 @@ def seller_dashboard(request):
     return render(request, 'accounts/seller_dashboard.html', {
         'stats': stats,
         'recent_orders': recent_orders,
+        'pending_deliveries': pending_deliveries,
         'low_stock_products': low_stock_products,
         'recent_reviews': recent_reviews
     })

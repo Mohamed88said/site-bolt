@@ -30,6 +30,15 @@
                 <div class="col-md-9">
                     <h6>Instructions pour le livreur :</h6>
                     <ol>
+                        <li><strong>Collecte chez le vendeur :</strong></li>
+                        <ul>
+                            <li>Adresse : {{ delivery.seller_address }}</li>
+                            <li>Téléphone : {{ delivery.seller_phone }}</li>
+                            {% if delivery.seller_instructions %}
+                            <li>Instructions : {{ delivery.seller_instructions }}</li>
+                            {% endif %}
+                        </ul>
+                        <li>Livraison chez l'acheteur</li>
                         <li>Présentez ce QR code à l'acheteur</li>
                         <li>L'acheteur scanne avec son téléphone</li>
                         <li>Il choisit son mode de paiement (espèces, Mobile Money, carte)</li>
@@ -46,12 +55,6 @@
                             L'acheteur doit payer les frais de livraison ({{ delivery.delivery_cost|floatformat:0 }} GNF) en plus de sa commande.
                         {% endif %}
                     </div>
-                    
-                    {% if user.is_seller %}
-                    <a href="{% url 'deliveries:share_qr_code' delivery.id %}" class="btn btn-success">
-                        <i class="fas fa-share me-2"></i>Partager avec le livreur
-                    </a>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -76,6 +79,14 @@
                                         <i class="fas fa-phone me-1"></i>{{ delivery.order.shipping_phone }}
                                     </a>
                                 {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <strong>Vendeur :</strong> {{ delivery.order.items.first.product.seller.username }}
+                                <br><small class="text-muted">{{ delivery.seller_address }}</small>
+                                <br><a href="tel:{{ delivery.seller_phone }}" class="text-decoration-none">
+                                    <i class="fas fa-phone me-1"></i>{{ delivery.seller_phone }}
+                                </a>
                             </div>
                             
                             {% if delivery.delivery_person %}
@@ -210,10 +221,12 @@
                         </a>
                     {% endif %}
                     
-                    {% if delivery.order.payment and delivery.order.payment.qr_code_image %}
-                        <a href="{% url 'deliveries:share_qr_code' delivery.id %}" class="btn btn-success w-100 mb-2">
-                            <i class="fas fa-qrcode me-2"></i>Partager QR Code
-                        </a>
+                    {% if delivery.delivery_person and delivery.status == 'assigned' %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Livreur assigné : <strong>{{ delivery.delivery_person.username }}</strong>
+                            <br>Le livreur peut maintenant démarrer la livraison.
+                        </div>
                     {% endif %}
                 </div>
             </div>
@@ -238,6 +251,12 @@
                     {% if delivery.order.shipping_phone %}
                         <a href="tel:{{ delivery.order.shipping_phone }}" class="btn btn-outline-primary w-100 mb-2">
                             <i class="fas fa-phone me-2"></i>Contacter le client
+                        </a>
+                    {% endif %}
+                    
+                    {% if delivery.seller_phone %}
+                        <a href="tel:{{ delivery.seller_phone }}" class="btn btn-outline-success w-100 mb-2">
+                            <i class="fas fa-phone me-2"></i>Contacter le vendeur
                         </a>
                     {% endif %}
                 </div>

@@ -11,15 +11,24 @@
     border-radius: 10px;
     border: 2px solid var(--primary-color);
 }
+
+.guinea-flag {
+    background: linear-gradient(to right, #ff0000, #ffff00, #00ff00);
+    height: 4px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container">
+    <div class="guinea-flag"></div>
+    
     <div class="row">
         <div class="col-12 mb-4">
             <h2><i class="fas fa-map-marker-alt me-2"></i>Choisir ma localisation</h2>
-            <p class="text-muted">Cliquez sur la carte pour définir votre position</p>
+            <p class="text-muted">Cliquez sur la carte pour définir votre position précise</p>
         </div>
     </div>
     
@@ -34,6 +43,12 @@
                     <div class="mt-3">
                         <button id="get-current-location" class="btn btn-outline-primary">
                             <i class="fas fa-crosshairs me-2"></i>Ma position actuelle
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="centerOnConakry()">
+                            <i class="fas fa-city me-2"></i>Conakry
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="centerOnKankan()">
+                            <i class="fas fa-mountain me-2"></i>Kankan
                         </button>
                     </div>
                 </div>
@@ -71,8 +86,22 @@
                             <select id="region" class="form-select">
                                 <option value="">Choisir une région</option>
                                 {% for region in regions %}
-                                <option value="{{ region.id }}">{{ region.name }}</option>
+                                <option value="{{ region.id }}" {% if region.id|stringformat:"s" == initial_region_id %}selected{% endif %}>{{ region.name }}</option>
                                 {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Préfecture</label>
+                            <select id="prefecture" class="form-select">
+                                <option value="">Choisir une préfecture</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Commune</label>
+                            <select id="commune" class="form-select">
+                                <option value="">Choisir une commune</option>
                             </select>
                         </div>
                         
@@ -80,6 +109,12 @@
                             <label class="form-label">Adresse</label>
                             <textarea id="address" class="form-control" rows="2" 
                                       placeholder="Quartier, rue, numéro..."></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Ville</label>
+                            <input type="text" id="city" class="form-control" 
+                                   placeholder="Ville">
                         </div>
                         
                         <div class="mb-3">
@@ -122,11 +157,20 @@ let selectedLng = null;
 
 // Initialiser la carte
 function initLocationMap() {
-    map = L.map('location-map').setView([9.6412, -13.5784], 7);
+    // Vérifier s'il y a des coordonnées initiales
+    const initialLat = {{ initial_lat|default:"9.6412" }};
+    const initialLng = {{ initial_lng|default:"-13.5784" }};
+    
+    map = L.map('location-map').setView([initialLat, initialLng], 10);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
+    
+    // Si des coordonnées initiales sont fournies, placer un marqueur
+    {% if initial_lat and initial_lng %}
+        setLocation(initialLat, initialLng);
+    {% endif %}
     
     // Clic sur la carte
     map.on('click', function(e) {
@@ -154,6 +198,14 @@ function setLocation(lat, lng) {
     document.querySelector('button[type="submit"]').disabled = false;
 }
 
+function centerOnConakry() {
+    map.setView([9.6412, -13.5784], 12);
+}
+
+function centerOnKankan() {
+    map.setView([10.3853, -9.3064], 12);
+}
+
 // Position actuelle
 document.getElementById('get-current-location').addEventListener('click', function() {
     if (navigator.geolocation) {
@@ -165,6 +217,51 @@ document.getElementById('get-current-location').addEventListener('click', functi
         });
     } else {
         alert('Géolocalisation non supportée');
+    }
+});
+
+// Gestion des régions/préfectures/communes
+document.getElementById('region').addEventListener('change', function() {
+    const regionId = this.value;
+    const prefectureSelect = document.getElementById('prefecture');
+    const communeSelect = document.getElementById('commune');
+    
+    // Réinitialiser les sélections
+    prefectureSelect.innerHTML = '<option value="">Choisir une préfecture</option>';
+    communeSelect.innerHTML = '<option value="">Choisir une commune</option>';
+    
+    if (regionId) {
+        fetch(`/geolocation/api/prefectures/?region_id=${regionId}`)
+            .then(response => response.json())
+            .then(data => {
+                data.prefectures.forEach(prefecture => {
+                    const option = document.createElement('option');
+                    option.value = prefecture.id;
+                    option.textContent = prefecture.name;
+                    prefectureSelect.appendChild(option);
+                });
+            });
+    }
+});
+
+document.getElementById('prefecture').addEventListener('change', function() {
+    const prefectureId = this.value;
+    const communeSelect = document.getElementById('commune');
+    
+    // Réinitialiser les communes
+    communeSelect.innerHTML = '<option value="">Choisir une commune</option>';
+    
+    if (prefectureId) {
+        fetch(`/geolocation/api/communes/?prefecture_id=${prefectureId}`)
+            .then(response => response.json())
+            .then(data => {
+                data.communes.forEach(commune => {
+                    const option = document.createElement('option');
+                    option.value = commune.id;
+                    option.textContent = commune.name;
+                    communeSelect.appendChild(option);
+                });
+            });
     }
 });
 
@@ -182,7 +279,12 @@ document.getElementById('location-form').addEventListener('submit', function(e) 
         latitude: selectedLat,
         longitude: selectedLng,
         region_id: document.getElementById('region').value || null,
+        prefecture_id: document.getElementById('prefecture').value || null,
+        commune_id: document.getElementById('commune').value || null,
         address: document.getElementById('address').value,
+        city: document.getElementById('city').value,
+        postal_code: document.getElementById('postal_code') ? document.getElementById('postal_code').value : '',
+        country: 'Guinée',
         landmark: document.getElementById('landmark').value,
         access_instructions: document.getElementById('access-instructions').value,
         is_primary: document.getElementById('is-primary').checked
@@ -200,7 +302,12 @@ document.getElementById('location-form').addEventListener('submit', function(e) 
     .then(data => {
         if (data.success) {
             alert('Localisation sauvegardée !');
-            window.location.href = '/geolocation/';
+            const nextUrl = new URLSearchParams(window.location.search).get('next');
+            if (nextUrl) {
+                window.location.href = nextUrl;
+            } else {
+                window.location.href = '/geolocation/';
+            }
         } else {
             alert('Erreur: ' + data.message);
         }
@@ -212,6 +319,13 @@ document.getElementById('location-form').addEventListener('submit', function(e) 
 });
 
 // Initialiser
-document.addEventListener('DOMContentLoaded', initLocationMap);
+document.addEventListener('DOMContentLoaded', function() {
+    initLocationMap();
+    
+    // Charger les préfectures si une région est pré-sélectionnée
+    {% if initial_region_id %}
+        document.getElementById('region').dispatchEvent(new Event('change'));
+    {% endif %}
+});
 </script>
 {% endblock %}

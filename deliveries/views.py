@@ -353,31 +353,35 @@ def rate_delivery(request, delivery_id):
     })
 
 @login_required
-def share_qr_code(request, delivery_id):
-    """Partager le QR code avec le livreur (vendeur)"""
-    delivery = get_object_or_404(Delivery, id=delivery_id)
+def seller_delivery_dashboard(request):
+    """Tableau de bord des livraisons pour vendeurs"""
+    if request.user.user_type != 'seller':
+        messages.error(request, 'Accès non autorisé.')
+        return redirect('core:home')
     
-    # Vérifier que c'est le vendeur
-    if not delivery.order.items.filter(product__seller=request.user).exists():
-        messages.error(request, "Vous n'avez pas accès à cette livraison.")
-        return redirect('deliveries:list')
+    # Livraisons en attente d'assignation
+    pending_deliveries = Delivery.objects.filter(
+        order__items__product__seller=request.user,
+        status='pending',
+        delivery_person__isnull=True
+    ).distinct()
     
-    payment = delivery.order.payment
+    # Livraisons en cours
+    active_deliveries = Delivery.objects.filter(
+        order__items__product__seller=request.user,
+        status__in=['assigned', 'in_progress']
+    ).distinct()
     
-    if request.method == 'POST':
-        # Simuler l'envoi d'email au livreur
-        if delivery.delivery_person:
-            # Ici vous pourriez intégrer un vrai système d'email
-            messages.success(request, f'QR code envoyé à {delivery.delivery_person.username}')
-        else:
-            messages.error(request, 'Aucun livreur assigné à cette livraison.')
-        
-        return redirect('deliveries:detail', pk=delivery_id)
+    # Livraisons terminées récemment
+    completed_deliveries = Delivery.objects.filter(
+        order__items__product__seller=request.user,
+        status='completed'
+    ).distinct()[:5]
     
     context = {
-        'delivery': delivery,
-        'payment': payment,
-        'order': delivery.order,
+        'pending_deliveries': pending_deliveries,
+        'active_deliveries': active_deliveries,
+        'completed_deliveries': completed_deliveries,
     }
     
-    return render(request, 'deliveries/qr_code_share.html', context)
+    return render(request, 'deliveries/seller_dashboard.html', context)

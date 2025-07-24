@@ -36,6 +36,12 @@ class Delivery(models.Model):
     estimated_delivery_time = models.DateTimeField(null=True, blank=True)
     actual_delivery_time = models.DateTimeField(null=True, blank=True)
     delivery_notes = models.TextField(blank=True)
+    
+    # Informations du vendeur pour la collecte
+    seller_address = models.TextField(blank=True, verbose_name=_('Adresse du vendeur'))
+    seller_phone = models.CharField(max_length=20, blank=True, verbose_name=_('Téléphone du vendeur'))
+    seller_instructions = models.TextField(blank=True, verbose_name=_('Instructions pour la collecte'))
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -50,6 +56,15 @@ class Delivery(models.Model):
     def save(self, *args, **kwargs):
         if not self.tracking_number:
             self.tracking_number = f"LIV{str(uuid.uuid4())[:8].upper()}"
+        
+        # Récupérer les informations du vendeur
+        if self.order and self.order.items.exists():
+            seller = self.order.items.first().product.seller
+            if not self.seller_address:
+                self.seller_address = seller.address or "Adresse non renseignée"
+            if not self.seller_phone:
+                self.seller_phone = seller.phone or "Téléphone non renseigné"
+        
         super().save(*args, **kwargs)
     
     def calculate_distance_to_seller(self):
@@ -65,11 +80,6 @@ class Delivery(models.Model):
         # Coordonnées du vendeur (par défaut Conakry si pas défini)
         seller_lat = 9.6412  # Conakry par défaut
         seller_lng = -13.5784
-        
-        # Si le vendeur a une localisation définie
-        if hasattr(seller, 'seller_profile') and seller.seller_profile.location_point:
-            seller_lat = float(seller.seller_profile.location_point.latitude)
-            seller_lng = float(seller.seller_profile.location_point.longitude)
         
         # Coordonnées de livraison
         delivery_lat = float(self.location_point.latitude)

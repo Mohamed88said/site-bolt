@@ -10,9 +10,24 @@ import json
 def location_picker(request):
     """Interface de sélection de localisation"""
     regions = GuineaRegion.objects.filter(is_active=True)
-    return render(request, 'geolocation/location_picker.html', {
-        'regions': regions
-    })
+    
+    # Récupérer les paramètres de l'URL si présents
+    region_id = request.GET.get('region_id')
+    prefecture_id = request.GET.get('prefecture_id')
+    commune_id = request.GET.get('commune_id')
+    lat = request.GET.get('lat')
+    lng = request.GET.get('lng')
+    
+    context = {
+        'regions': regions,
+        'initial_region_id': region_id,
+        'initial_prefecture_id': prefecture_id,
+        'initial_commune_id': commune_id,
+        'initial_lat': lat,
+        'initial_lng': lng,
+    }
+    
+    return render(request, 'geolocation/location_picker.html', context)
 
 @login_required
 @require_POST
@@ -28,7 +43,12 @@ def save_location(request):
             latitude=data['latitude'],
             longitude=data['longitude'],
             region_id=data.get('region_id'),
+            prefecture_id=data.get('prefecture_id'),
+            commune_id=data.get('commune_id'),
             address=data.get('address', ''),
+            city=data.get('city', ''),
+            postal_code=data.get('postal_code', ''),
+            country=data.get('country', 'Guinée'),
             landmark=data.get('landmark', ''),
             access_instructions=data.get('access_instructions', '')
         )
@@ -37,7 +57,8 @@ def save_location(request):
         user_location = UserLocation.objects.create(
             user=request.user,
             location_point=location_point,
-            is_primary=data.get('is_primary', False)
+            is_primary=data.get('is_primary', False),
+            label=data.get('label', '')
         )
         
         return JsonResponse({
@@ -78,3 +99,22 @@ def api_communes(request):
     
     data = [{'id': c.id, 'name': c.name} for c in communes]
     return JsonResponse({'communes': data})
+
+@login_required
+@require_POST
+def delete_location(request, location_id):
+    """Supprimer une localisation"""
+    try:
+        user_location = get_object_or_404(UserLocation, id=location_id, user=request.user)
+        location_point = user_location.location_point
+        
+        # Supprimer la relation utilisateur
+        user_location.delete()
+        
+        # Supprimer le point de localisation s'il n'est plus utilisé
+        if not UserLocation.objects.filter(location_point=location_point).exists():
+            location_point.delete()
+        
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})

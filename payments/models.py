@@ -26,15 +26,20 @@ class Payment(models.Model):
         ('completed', _('Terminé')),
         ('failed', _('Échoué')),
         ('cancelled', _('Annulé')),
+        ('pending_delivery_confirmation', _('En attente de confirmation du livreur')),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='payment')
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')
     confirmation_code = models.CharField(max_length=6, unique=True, blank=True)
     qr_code_image = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
+    
+    # Tentatives de confirmation
+    confirmation_attempts = models.PositiveIntegerField(default=0)
+    qr_code_expires_at = models.DateTimeField(null=True, blank=True)
     
     # Identifiants des processeurs de paiement
     stripe_payment_intent_id = models.CharField(max_length=200, blank=True)
@@ -93,3 +98,25 @@ class Payment(models.Model):
         from django.urls import reverse
         from django.conf import settings
         return f"{settings.SITE_URL}{reverse('payments:qr_scan', kwargs={'payment_id': self.id})}"
+
+class PaymentDispute(models.Model):
+    DISPUTE_STATUS_CHOICES = [
+        ('pending', _('En attente')),
+        ('resolved', _('Résolu')),
+        ('rejected', _('Rejeté')),
+    ]
+    
+    payment = models.ForeignKey(Payment, on_delete=models.CASCADE, related_name='disputes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    reason = models.TextField()
+    evidence = models.FileField(upload_to='dispute_evidences/', null=True, blank=True)
+    status = models.CharField(max_length=20, choices=DISPUTE_STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        verbose_name = _('Litige de paiement')
+        verbose_name_plural = _('Litiges de paiement')
+    
+    def __str__(self):
+        return f"Litige {self.id} - {self.payment}"

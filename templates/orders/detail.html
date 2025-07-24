@@ -19,18 +19,28 @@
 {% if order.payment and order.payment.qr_code_image %}
     <div class="card mb-4">
         <div class="card-header">
-            <h5><i class="fas fa-qrcode"></i> {% trans "Instructions de paiement" %}</h5>
+            <h5><i class="fas fa-qrcode"></i> {% trans "QR Code de paiement" %}</h5>
         </div>
         <div class="card-body">
-            <img src="{{ order.payment.qr_code_image.url }}" alt="{% trans 'QR Code de paiement' %}" class="img-fluid mb-3" style="max-width: 200px;">
-            <p>
-                {% trans "Code de confirmation :" %} <strong>{{ order.payment.confirmation_code }}</strong><br>
-                {% if order.payment.payment_method == 'cash_on_delivery' %}
-                    {% trans "À la livraison, scannez ce QR code ou entrez le code de confirmation pour finaliser le paiement." %}
-                {% elif order.payment.payment_method == 'store_pickup' %}
-                    {% trans "Lors du retrait en boutique, scannez ce QR code ou entrez le code de confirmation pour finaliser le paiement." %}
-                {% endif %}
-            </p>
+            <div class="row">
+                <div class="col-md-3 text-center">
+                    <img src="{{ order.payment.qr_code_image.url }}" alt="{% trans 'QR Code de paiement' %}" class="img-fluid" style="max-width: 200px;">
+                </div>
+                <div class="col-md-9">
+                    <p>
+                        {% trans "Code de confirmation :" %} <strong class="text-primary">{{ order.payment.confirmation_code }}</strong><br>
+                        {% if order.payment.payment_method == 'cash_on_delivery' %}
+                            {% trans "À la livraison, scannez ce QR code ou entrez le code de confirmation pour finaliser le paiement." %}
+                        {% elif order.payment.payment_method == 'store_pickup' %}
+                            {% trans "Lors du retrait en boutique, scannez ce QR code ou entrez le code de confirmation pour finaliser le paiement." %}
+                        {% endif %}
+                    </p>
+                    
+                    <a href="{{ order.payment.qr_scan_url }}" target="_blank" class="btn btn-primary">
+                        <i class="fas fa-qrcode me-2"></i>Ouvrir le lien de paiement
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 {% endif %}
@@ -75,9 +85,9 @@
                                     </div>
                                 </div>
                             </td>
-                            <td>{{ item.price }}€</td>
+                            <td>{{ item.price|floatformat:0 }} GNF</td>
                             <td>{{ item.quantity }}</td>
-                            <td>{{ item.total_price }}€</td>
+                            <td>{{ item.total_price|floatformat:0 }} GNF</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -110,12 +120,16 @@
                         {% if order.delivery.actual_delivery_time %}
                             <p><strong>{% trans "Livrée le:" %}</strong> {{ order.delivery.actual_delivery_time }}</p>
                         {% endif %}
-                        <p><strong>{% trans "Coût de livraison:" %}</strong> {{ order.delivery.delivery_cost }}€</p>
+                        <p><strong>{% trans "Coût de livraison:" %}</strong> {{ order.delivery.delivery_cost|floatformat:0 }} GNF</p>
                     </div>
                 </div>
                 {% if order.delivery.delivery_notes %}
                     <p><strong>{% trans "Notes:" %}</strong> {{ order.delivery.delivery_notes }}</p>
                 {% endif %}
+                
+                <a href="{% url 'deliveries:detail' order.delivery.id %}" class="btn btn-outline-primary">
+                    <i class="fas fa-truck me-2"></i>Suivre la livraison
+                </a>
             </div>
         </div>
         {% endif %}
@@ -153,20 +167,20 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between mb-2">
                     <span>{% trans "Sous-total:" %}</span>
-                    <span>{{ order.total_amount }}€</span>
+                    <span>{{ order.total_amount|floatformat:0 }} GNF</span>
                 </div>
                 <div class="d-flex justify-content-between mb-2">
                     <span>{% trans "Livraison:" %}</span>
-                    <span>{{ order.shipping_cost }}€</span>
+                    <span>{{ order.shipping_cost|floatformat:0 }} GNF</span>
                 </div>
                 <div class="d-flex justify-content-between mb-2">
                     <span>{% trans "TVA:" %}</span>
-                    <span>{{ order.tax_amount }}€</span>
+                    <span>{{ order.tax_amount|floatformat:0 }} GNF</span>
                 </div>
                 <hr>
                 <div class="d-flex justify-content-between">
                     <strong>{% trans "Total:" %}</strong>
-                    <strong>{{ order.total_with_shipping }}€</strong>
+                    <strong>{{ order.total_with_shipping|floatformat:0 }} GNF</strong>
                 </div>
             </div>
         </div>
@@ -197,6 +211,12 @@
                     {{ order.shipping_postal_code }} {{ order.shipping_city }}<br>
                     {{ order.shipping_country }}
                 </address>
+                
+                {% if order.location_point %}
+                <a href="{{ order.location_point.google_maps_url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-external-link-alt me-1"></i>Voir sur Google Maps
+                </a>
+                {% endif %}
             </div>
         </div>
         
@@ -206,6 +226,12 @@
                 <h5><i class="fas fa-cog"></i> {% trans "Actions" %}</h5>
             </div>
             <div class="card-body">
+                {% if order.delivery and order.delivery.status == 'pending' and not order.delivery.delivery_person %}
+                    <a href="{% url 'deliveries:delivery_map' order.delivery.id %}" class="btn btn-warning w-100 mb-2">
+                        <i class="fas fa-truck me-2"></i>Choisir un livreur
+                    </a>
+                {% endif %}
+                
                 <form method="post" action="{% url 'orders:update_status' order.pk %}">
                     {% csrf_token %}
                     <div class="mb-3">
