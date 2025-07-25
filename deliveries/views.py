@@ -351,6 +351,23 @@ def rate_delivery(request, delivery_id):
         'form': form,
         'delivery': delivery
     })
+@login_required
+def toggle_availability(request):
+    """Basculer la disponibilité du livreur"""
+    if not request.user.is_delivery:
+        return JsonResponse({'success': False, 'error': 'Non autorisé'})
+    
+    if request.method == 'POST':
+        profile = request.user.delivery_profile
+        profile.is_available = not profile.is_available
+        profile.save()
+        
+        return JsonResponse({
+            'success': True,
+            'is_available': profile.is_available
+        })
+    
+    return JsonResponse({'success': False})
 
 @login_required
 def seller_delivery_dashboard(request):

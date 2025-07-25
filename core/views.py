@@ -25,6 +25,15 @@ def get_client_ip(request):
 
 def home(request):
     """Home page view."""
+    # Redirection vers le dashboard approprié si connecté
+    if request.user.is_authenticated:
+        if request.user.is_seller:
+            return redirect('accounts:seller_dashboard')
+        elif request.user.is_delivery:
+            return redirect('accounts:delivery_dashboard')
+        elif request.user.is_buyer:
+            return redirect('accounts:buyer_dashboard')
+    
     # Get featured products
     featured_products = Product.objects.filter(
         is_featured=True, 

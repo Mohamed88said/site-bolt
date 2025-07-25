@@ -7,12 +7,14 @@ from django.views.generic import CreateView, UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Avg
 from django.core.paginator import Paginator
-from deliveries.models import Delivery
+from deliveries.models import Delivery, DeliveryRating
+from orders.models import Order
+from products.models import Product
+from favorites.models import Favorite
+from cart.models import Cart
 
 from .models import User, SellerProfile, DeliveryProfile
 from .forms import UserRegistrationForm, UserUpdateForm, SellerProfileForm, DeliveryProfileForm
-from products.models import Product
-from orders.models import Order
 from blog.models import BlogPost
 from reviews.models import Review
 
@@ -49,10 +51,32 @@ def seller_dashboard(request):
         delivery_person__isnull=True
     ).distinct()[:5]
     
+    # Compter les commandes par statut
+    pending_orders_count = Order.objects.filter(
+        items__product__seller=request.user,
+        status='pending'
+    ).distinct().count()
+    
+    processing_orders_count = Order.objects.filter(
+        items__product__seller=request.user,
+        status='processing'
+    ).distinct().count()
+    
+    # Compter les livraisons actives
+    active_deliveries_count = Delivery.objects.filter(
+        order__items__product__seller=request.user,
+        status__in=['assigned', 'in_progress']
+    ).distinct().count()
+    
     # Produits en rupture de stock
     low_stock_products = request.user.products.filter(
         stock__lte=5, is_active=True
     )[:5]
+    
+    # Compter les produits par statut
+    active_products_count = request.user.products.filter(is_active=True).count()
+    low_stock_count = request.user.products.filter(stock__lte=5, stock__gt=0).count()
+    out_of_stock_count = request.user.products.filter(stock=0).count()
     
     # Derniers avis
     recent_reviews = Review.objects.filter(
@@ -63,9 +87,139 @@ def seller_dashboard(request):
         'stats': stats,
         'recent_orders': recent_orders,
         'pending_deliveries': pending_deliveries,
+        'pending_orders_count': pending_orders_count,
+        'processing_orders_count': processing_orders_count,
+        'active_deliveries_count': active_deliveries_count,
         'low_stock_products': low_stock_products,
+        'active_products_count': active_products_count,
+        'low_stock_count': low_stock_count,
+        'out_of_stock_count': out_of_stock_count,
         'recent_reviews': recent_reviews
     })
+
+
+@login_required
+def buyer_dashboard(request):
+    """Tableau de bord pour les acheteurs"""
+    if not request.user.is_buyer:
+        messages.error(request, "Vous devez être acheteur pour accéder à cette page.")
+        return redirect('core:home')
+    
+    # Statistiques client
+    user_orders = Order.objects.filter(user=request.user)
+    total_orders = user_orders.count()
+    total_spent = user_orders.aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    # Favoris
+    favorites_count = Favorite.objects.filter(user=request.user).count()
+    
+    # Panier
+    cart = Cart.objects.filter(user=request.user).first()
+    cart_items = cart.total_items if cart else 0
+    
+    # Livraisons actives
+    active_deliveries = Delivery.objects.filter(
+        order__user=request.user,
+        status__in=['assigned', 'in_progress']
+    ).count()
+    
+    # Paiements en attente
+    pending_payments = user_orders.filter(payment_status='pending').count()
+    
+    # Commandes par statut
+    pending_orders = user_orders.filter(status='pending').count()
+    shipped_orders = user_orders.filter(status='shipped').count()
+    delivered_orders = user_orders.filter(status='delivered').count()
+    
+    # Commandes récentes
+    recent_orders = user_orders.order_by('-created_at')[:5]
+    
+    # Livraisons récentes
+    recent_deliveries = Delivery.objects.filter(
+        order__user=request.user
+    ).order_by('-created_at')[:5]
+    
+    return render(request, 'accounts/buyer_dashboard.html', {
+        'total_orders': total_orders,
+        'total_spent': total_spent,
+        'favorites_count': favorites_count,
+        'cart_items': cart_items,
+        'active_deliveries': active_deliveries,
+        'pending_payments': pending_payments,
+        'pending_orders': pending_orders,
+        'shipped_orders': shipped_orders,
+        'delivered_orders': delivered_orders,
+        'recent_orders': recent_orders,
+        'recent_deliveries': recent_deliveries,
+    })
+
+
+@login_required
+def delivery_dashboard(request):
+    """Tableau de bord pour les livreurs"""
+    if not request.user.is_delivery:
+        messages.error(request, "Vous devez être livreur pour accéder à cette page.")
+        return redirect('core:home')
+    
+    # Statistiques livreur
+    user_deliveries = Delivery.objects.filter(delivery_person=request.user)
+    total_deliveries = user_deliveries.count()
+    completed_deliveries = user_deliveries.filter(status='completed').count()
+    
+    # Gains
+    monthly_earnings = user_deliveries.filter(
+        created_at__month=timezone.now().month,
+        status='completed'
+    ).aggregate(total=Sum('delivery_cost'))['total'] or 0
+    
+    total_earnings = user_deliveries.filter(
+        status='completed'
+    ).aggregate(total=Sum('delivery_cost'))['total'] or 0
+    
+    # Note moyenne
+    ratings = DeliveryRating.objects.filter(delivery__delivery_person=request.user)
+    average_rating = ratings.aggregate(avg=Avg('rating'))['avg'] or 0
+    total_ratings = ratings.count()
+    
+    # Livraisons par statut
+    assigned_deliveries = user_deliveries.filter(status='assigned').count()
+    in_progress_deliveries = user_deliveries.filter(status='in_progress').count()
+    
+    # Livraisons actuelles
+    current_deliveries = user_deliveries.filter(
+        status__in=['assigned', 'in_progress']
+    ).order_by('-created_at')[:5]
+    
+    # Livraisons disponibles
+    available_deliveries = Delivery.objects.filter(
+        status='pending',
+        delivery_person__isnull=True
+    )[:5]
+    available_deliveries_count = available_deliveries.count()
+    
+    # Performances
+    success_rate = (completed_deliveries / total_deliveries * 100) if total_deliveries > 0 else 0
+    
+    # Dernières évaluations
+    recent_ratings = ratings.order_by('-created_at')[:5]
+    
+    return render(request, 'accounts/delivery_dashboard.html', {
+        'total_deliveries': total_deliveries,
+        'completed_deliveries': completed_deliveries,
+        'monthly_earnings': monthly_earnings,
+        'total_earnings': total_earnings,
+        'average_rating': average_rating,
+        'total_ratings': total_ratings,
+        'assigned_deliveries': assigned_deliveries,
+        'in_progress_deliveries': in_progress_deliveries,
+        'current_deliveries': current_deliveries,
+        'available_deliveries': available_deliveries,
+        'available_deliveries_count': available_deliveries_count,
+        'success_rate': success_rate,
+        'recent_ratings': recent_ratings,
+    })
+
+
 class RegisterView(CreateView):
     model = User
     form_class = UserRegistrationForm

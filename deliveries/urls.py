@@ -15,4 +15,5 @@ urlpatterns = [
     path('complete/<int:delivery_id>/', views.complete_delivery, name='complete'),
     path('rate/<int:delivery_id>/', views.rate_delivery, name='rate'),
     path('seller-dashboard/', views.seller_delivery_dashboard, name='seller_dashboard'),
+    path('toggle-availability/', views.toggle_availability, name='toggle_availability'),
 ]

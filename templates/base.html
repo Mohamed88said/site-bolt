@@ -126,12 +126,16 @@
                                     <li><a class="dropdown-item" href="{% url 'products:seller_products' %}"><i class="fas fa-boxes me-2"></i>Mes Produits</a></li>
                                     <li><a class="dropdown-item" href="{% url 'products:add_product' %}"><i class="fas fa-plus me-2"></i>Ajouter un Produit</a></li>
                                     <li><a class="dropdown-item" href="{% url 'analytics:dashboard' %}"><i class="fas fa-chart-bar me-2"></i>Statistiques</a></li>
+                                {% elif user.is_buyer %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Mon Espace</h6></li>
+                                    <li><a class="dropdown-item" href="{% url 'accounts:buyer_dashboard' %}"><i class="fas fa-tachometer-alt me-2"></i>Mon tableau de bord</a></li>
                                 {% endif %}
                                 
                                 {% if user.is_delivery %}
                                     <li><hr class="dropdown-divider"></li>
                                     <li><h6 class="dropdown-header">Espace Livreur</h6></li>
-                                    <li><a class="dropdown-item" href="{% url 'deliveries:delivery_dashboard' %}"><i class="fas fa-tachometer-alt me-2"></i>Tableau de bord</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'accounts:delivery_dashboard' %}"><i class="fas fa-tachometer-alt me-2"></i>Tableau de bord</a></li>
                                     <li><a class="dropdown-item" href="{% url 'deliveries:list' %}"><i class="fas fa-truck me-2"></i>Mes Livraisons</a></li>
                                     <li><a class="dropdown-item" href="{% url 'deliveries:available' %}"><i class="fas fa-search me-2"></i>Livraisons Disponibles</a></li>
                                 {% endif %}
