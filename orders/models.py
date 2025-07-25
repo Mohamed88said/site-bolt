@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
 from products.models import Product, ProductVariant
 from geolocation.models import LocationPoint
+from decimal import Decimal
 import uuid
 
 User = get_user_model()
@@ -41,7 +42,7 @@ class Order(models.Model):
     shipping_address = models.TextField()
     shipping_city = models.CharField(max_length=100)
     shipping_postal_code = models.CharField(max_length=10)
-    shipping_country = models.CharField(max_length=100)
+    shipping_country = models.CharField(max_length=100, default='Guinée')
     shipping_phone = models.CharField(max_length=20, blank=True)
     
     # Adresse de facturation
@@ -50,10 +51,10 @@ class Order(models.Model):
     billing_address = models.TextField()
     billing_city = models.CharField(max_length=100)
     billing_postal_code = models.CharField(max_length=10)
-    billing_country = models.CharField(max_length=100)
+    billing_country = models.CharField(max_length=100, default='Guinée')
     
     # Informations de paiement
-    payment_method = models.CharField(max_length=50, blank=True)
+    payment_method = models.CharField(max_length=50, default='cash_on_delivery')
     payment_id = models.CharField(max_length=100, blank=True)
     
     notes = models.TextField(blank=True)
@@ -79,6 +80,10 @@ class Order(models.Model):
     @property
     def full_shipping_address(self):
         return f"{self.shipping_address}, {self.shipping_city} {self.shipping_postal_code}, {self.shipping_country}"
+    
+    @property
+    def shipping_full_name(self):
+        return f"{self.shipping_first_name} {self.shipping_last_name}"
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
@@ -96,7 +101,8 @@ class OrderItem(models.Model):
         return f"{self.quantity} x {self.product.name}"
     
     def save(self, *args, **kwargs):
-        self.total_price = self.price * self.quantity
+        if not self.total_price:
+            self.total_price = self.price * self.quantity
         super().save(*args, **kwargs)
 
 class OrderStatusHistory(models.Model):

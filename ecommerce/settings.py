@@ -1,4 +1,5 @@
 import os
+from django.utils import timezone
 from pathlib import Path
 from decouple import config
 
@@ -8,7 +9,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-producti
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,*').split(',')
 
-DJANGO_APPS = [
+DEFAULT_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -31,11 +32,11 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     'accounts',
     'geolocation',
+    'cart',
     'products',
     'orders',
     'deliveries',
     'favorites',
-    'cart',
     'core',
     'api',
     'notifications',
@@ -46,7 +47,7 @@ LOCAL_APPS = [
     'messaging',
 ]
 
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+INSTALLED_APPS = DEFAULT_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -108,6 +109,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'fr-fr'
 TIME_ZONE = 'Africa/Conakry'
+USE_L10N = True
 USE_I18N = True
 USE_TZ = True
 
@@ -121,6 +123,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'accounts.User'
+
+# Login URLs
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -148,10 +155,6 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@ecommerce.com
 CORS_ALLOW_ALL_ORIGINS = True
 SITE_ID = 1
 
-LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/'
-
 # Payment settings
 STRIPE_PUBLIC_KEY = config('STRIPE_PUBLIC_KEY', default='')
 STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
@@ -160,6 +163,10 @@ PAYPAL_CLIENT_SECRET = config('PAYPAL_CLIENT_SECRET', default='')
 
 # Site URL
 SITE_URL = config('SITE_URL', default='http://localhost:8000')
+
+# Mobile Money settings
+MOBILE_MONEY_API_URL = config('MOBILE_MONEY_API_URL', default='')
+MOBILE_MONEY_API_KEY = config('MOBILE_MONEY_API_KEY', default='')
 
 # Cache
 CACHES = {
@@ -199,5 +206,8 @@ LOGGING = {
     },
 }
 
+# Create required directories
 os.makedirs(BASE_DIR / 'logs', exist_ok=True)
 os.makedirs(BASE_DIR / 'media' / 'qrcodes', exist_ok=True)
+os.makedirs(BASE_DIR / 'media' / 'products', exist_ok=True)
+os.makedirs(BASE_DIR / 'media' / 'avatars', exist_ok=True)

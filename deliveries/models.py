@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
 from orders.models import Order
 from geolocation.models import LocationPoint, DeliveryZone
+from decimal import Decimal
 import uuid
 import math
 
@@ -61,7 +62,7 @@ class Delivery(models.Model):
         if self.order and self.order.items.exists():
             seller = self.order.items.first().product.seller
             if not self.seller_address:
-                self.seller_address = seller.address or "Adresse non renseignée"
+                self.seller_address = seller.full_address or "Adresse non renseignée"
             if not self.seller_phone:
                 self.seller_phone = seller.phone or "Téléphone non renseigné"
         
@@ -144,45 +145,3 @@ class DeliveryRating(models.Model):
     
     def __str__(self):
         return f"Évaluation {self.rating}/5 pour {self.delivery}"
-
-class DeliveryPerson(models.Model):
-    AVAILABILITY_CHOICES = [
-        ('available', _('Disponible')),
-        ('unavailable', _('Indisponible')),
-    ]
-    
-    VEHICLE_CHOICES = [
-        ('bike', _('Vélo')),
-        ('car', _('Voiture')),
-        ('van', _('Camionnette')),
-        ('other', _('Autre')),
-    ]
-    
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='delivery_person_profile',
-                              limit_choices_to={'user_type': 'delivery'}, verbose_name=_('Utilisateur'))
-    phone_number = models.CharField(max_length=20, verbose_name=_('Numéro de téléphone'))
-    vehicle_type = models.CharField(max_length=20, choices=VEHICLE_CHOICES, blank=True, verbose_name=_('Type de véhicule'))
-    location_point = models.ForeignKey(LocationPoint, on_delete=models.SET_NULL, null=True, blank=True,
-                                     related_name='delivery_persons', verbose_name=_('Position actuelle'))
-    availability_status = models.CharField(max_length=20, choices=AVAILABILITY_CHOICES, default='available',
-                                         verbose_name=_('Statut de disponibilité'))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Créé le'))
-    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Mis à jour le'))
-    
-    class Meta:
-        verbose_name = _('Livreur')
-        verbose_name_plural = _('Livreurs')
-    
-    def __str__(self):
-        return f"{self.user.username} - {self.get_vehicle_type_display()}"
-    
-    @property
-    def is_available(self):
-        return self.availability_status == 'available'
-    
-    def calculate_distance_to(self, location_point):
-        """Calcule la distance vers un point de livraison"""
-        if not self.location_point or not location_point:
-            return None
-        
-        return self.location_point.calculate_distance_to(location_point)

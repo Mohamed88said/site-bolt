@@ -18,6 +18,7 @@ class Payment(models.Model):
         ('paypal', _('PayPal')),
         ('mobile_money', _('Mobile Money')),
         ('cash_on_delivery', _('Paiement à la livraison')),
+        ('store_pickup', _('Retrait en boutique')),
     ]
     
     STATUS_CHOICES = [
@@ -26,12 +27,13 @@ class Payment(models.Model):
         ('completed', _('Terminé')),
         ('failed', _('Échoué')),
         ('cancelled', _('Annulé')),
+        ('refunded', _('Remboursé')),
         ('pending_delivery_confirmation', _('En attente de confirmation du livreur')),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='payment')
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='cash_on_delivery')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')
     confirmation_code = models.CharField(max_length=6, unique=True, blank=True)
@@ -56,7 +58,7 @@ class Payment(models.Model):
         verbose_name_plural = _('Paiements')
     
     def __str__(self):
-        return f"Paiement {self.id} - {self.order}"
+        return f"Paiement {str(self.id)[:8]} - {self.order}"
     
     def save(self, *args, **kwargs):
         if not self.confirmation_code:

@@ -3,7 +3,6 @@ from django.contrib.auth import get_user_model
 from decimal import Decimal
 from products.models import Product, ProductVariant
 from geolocation.models import UserLocation, DeliveryZone
-import requests
 from django.utils.translation import gettext_lazy as _
 
 User = get_user_model()
@@ -20,6 +19,10 @@ class Cart(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = _('Panier')
+        verbose_name_plural = _('Paniers')
     
     def __str__(self):
         return f"Panier de {self.user.username}"
@@ -39,25 +42,21 @@ class Cart(models.Model):
     def shipping_cost(self):
         """Calculer les frais de livraison basés sur la DeliveryZone et la distance"""
         if not self.location_point or not self.items.exists():
-            return Decimal('10.00')  # Fallback si pas d'adresse ou panier vide
+            return Decimal('15000.00')  # Fallback si pas d'adresse ou panier vide
         
         # Récupérer le vendeur du premier produit (hypothèse : un seul vendeur par panier)
         seller = self.items.first().product.seller
         zone = self._get_delivery_zone()
         if not zone:
-            return Decimal('10.00')  # Fallback si pas de zone
-        
-        # Coordonnées du vendeur (à partir de User.address, supposée géocodée)
-        start_coords = self._get_seller_coordinates(seller)
-        end_coords = (self.location_point.latitude, self.location_point.longitude)
+            return Decimal('15000.00')  # Fallback si pas de zone
         
         try:
-            distance = self._get_distance(start_coords, end_coords)
-            cost = zone.base_delivery_cost + (zone.cost_per_km * distance)
-            return round(cost, 2)
+            # Calculer le coût basé sur la zone
+            base_cost = float(zone.base_delivery_cost)
+            return Decimal(str(base_cost))
         except Exception as e:
-            print(f"Erreur calcul distance: {e}")
-            return Decimal('10.00')  # Fallback en cas d'erreur
+            print(f"Erreur calcul livraison: {e}")
+            return Decimal('15000.00')  # Fallback en cas d'erreur
     
     @property
     def estimated_delivery_time(self):
@@ -69,37 +68,15 @@ class Cart(models.Model):
     
     def _get_delivery_zone(self):
         """Trouver la DeliveryZone correspondant au LocationPoint"""
-        if self.location_point:
+        if self.location_point and self.location_point.location_point:
             zones = DeliveryZone.objects.filter(
-                models.Q(communes=self.location_point.commune) |
-                models.Q(prefectures=self.location_point.prefecture) |
-                models.Q(regions=self.location_point.region),
+                models.Q(communes=self.location_point.location_point.commune) |
+                models.Q(prefectures=self.location_point.location_point.prefecture) |
+                models.Q(regions=self.location_point.location_point.region),
                 is_active=True
             ).order_by('communes__isnull', 'prefectures__isnull', 'regions__isnull')
             return zones.first() if zones.exists() else None
         return None
-    
-    def _get_seller_coordinates(self, seller):
-        """Récupérer les coordonnées du vendeur (hypothèse : géocodage de User.address)"""
-        # À remplacer par un vrai géocodage si disponible
-        # Pour l'exemple, utiliser Conakry comme fallback
-        try:
-            # Supposer que User.address est géocodée via une API (ex. Google Maps)
-            # Pour simplifier, utiliser des coordonnées par défaut
-            return (9.6412, -13.5784)  # Conakry
-        except Exception:
-            return (9.6412, -13.5784)  # Fallback
-    
-    def _get_distance(self, start_coords, end_coords):
-        """Calculer la distance en km avec OSRM"""
-        url = f"http://router.project-osrm.org/route/v1/driving/{start_coords[1]},{start_coords[0]};{end_coords[1]},{end_coords[0]}?overview=false"
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            if data['routes']:
-                distance_meters = data['routes'][0]['distance']
-                return distance_meters / 1000  # Convertir en kilomètres
-        return 0.0
     
     def clear(self):
         self.items.all().delete()
@@ -115,6 +92,8 @@ class CartItem(models.Model):
     
     class Meta:
         unique_together = ['cart', 'product', 'variant']
+        verbose_name = _('Article du panier')
+        verbose_name_plural = _('Articles du panier')
     
     def __str__(self):
         return f"{self.quantity} x {self.product.name}"

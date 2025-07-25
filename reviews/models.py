@@ -15,8 +15,8 @@ class Review(models.Model):
         (5, '5 étoiles'),
     ]
     
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='review_app_reviews')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='review_app_user_reviews')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews')
     order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True)
     rating = models.IntegerField(choices=RATING_CHOICES, verbose_name=_('Note'))
     title = models.CharField(max_length=200, blank=True, verbose_name=_('Titre'))
@@ -26,7 +26,7 @@ class Review(models.Model):
     helpful_count = models.IntegerField(default=0, verbose_name=_('Votes utiles'))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    is_active = models.BooleanField(default=True)  # Ajouté
+    is_active = models.BooleanField(default=True, verbose_name=_('Actif'))
     
     class Meta:
         verbose_name = _('Avis')
@@ -36,6 +36,15 @@ class Review(models.Model):
     
     def __str__(self):
         return f"{self.product.name} - {self.rating} étoiles par {self.user.username}"
+    
+    def save(self, *args, **kwargs):
+        # Vérifier si c'est un achat vérifié
+        if self.order and self.order.items.filter(product=self.product).exists():
+            self.is_verified = True
+        super().save(*args, **kwargs)
+        
+        # Mettre à jour la note du produit
+        self.product.save()  # Cela déclenchera le calcul de la note moyenne
 
 class ReviewHelpful(models.Model):
     review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='helpful_votes')
@@ -45,6 +54,8 @@ class ReviewHelpful(models.Model):
     
     class Meta:
         unique_together = ['review', 'user']
+        verbose_name = _('Vote utile')
+        verbose_name_plural = _('Votes utiles')
     
     def __str__(self):
         return f"{self.user.username} - {self.review}"

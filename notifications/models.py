@@ -12,12 +12,17 @@ class Notification(models.Model):
         ('order_delivered', _('Commande livrée')),
         ('order_cancelled', _('Commande annulée')),
         ('payment_received', _('Paiement reçu')),
+        ('payment_pending', _('Paiement en attente')),
         ('product_low_stock', _('Stock faible')),
         ('new_review', _('Nouvel avis')),
         ('delivery_request', _('Demande de livraison')),
         ('delivery_accepted', _('Livraison acceptée')),
+        ('delivery_assigned', _('Livraison assignée')),
+        ('delivery_started', _('Livraison démarrée')),
+        ('delivery_completed', _('Livraison terminée')),
         ('promotion', _('Promotion')),
         ('system', _('Système')),
+        ('message', _('Nouveau message')),
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
@@ -38,4 +43,4 @@ class Notification(models.Model):
     
     def mark_as_read(self):
         self.is_read = True
-        self.save()
+        self.save(update_fields=['is_read'])

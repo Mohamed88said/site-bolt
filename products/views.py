@@ -4,9 +4,11 @@ from django.contrib import messages
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
-from django.db.models import Q, Avg
+from django.db.models import Q, Avg, Count
+from django.core.paginator import Paginator
 from .models import Product, Category
 from .forms import ProductForm, ProductImageFormSet
+from reviews.models import Review
 
 class ProductListView(ListView):
     model = Product
@@ -15,7 +17,7 @@ class ProductListView(ListView):
     paginate_by = 12
     
     def get_queryset(self):
-        queryset = Product.objects.filter(is_active=True).select_related('category', 'seller').prefetch_related('images')
+        queryset = Product.objects.filter(is_active=True, is_visible=True).select_related('category', 'seller').prefetch_related('images')
         
         # Filtres
         query = self.request.GET.get('q')
@@ -65,8 +67,11 @@ class ProductDetailView(DetailView):
     template_name = 'products/detail.html'
     context_object_name = 'product'
     
+    def get_queryset(self):
+        return Product.objects.filter(is_active=True, is_visible=True)
+    
     def get_object(self):
-        product = get_object_or_404(Product, slug=self.kwargs['slug'], is_active=True)
+        product = get_object_or_404(self.get_queryset(), slug=self.kwargs['slug'])
         # Incrémenter les vues
         product.views += 1
         product.save(update_fields=['views'])
@@ -75,10 +80,17 @@ class ProductDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         product = self.get_object()
+        
+        # Produits similaires
         context['related_products'] = Product.objects.filter(
             category=product.category,
-            is_active=True
+            is_active=True,
+            is_visible=True
         ).exclude(id=product.id)[:4]
+        
+        # Avis
+        context['reviews'] = product.reviews.filter(is_active=True, is_approved=True).select_related('user')[:10]
+        
         return context
 
 class CategoryListView(ListView):
@@ -88,8 +100,12 @@ class CategoryListView(ListView):
     paginate_by = 12
     
     def get_queryset(self):
-        self.category = get_object_or_404(Category, slug=self.kwargs['slug'])
-        return Product.objects.filter(category=self.category, is_active=True)
+        self.category = get_object_or_404(Category, slug=self.kwargs['slug'], is_active=True)
+        return Product.objects.filter(
+            category=self.category, 
+            is_active=True,
+            is_visible=True
+        ).select_related('seller').prefetch_related('images')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -186,3 +202,40 @@ class ProductDeleteView(LoginRequiredMixin, DeleteView):
     def delete(self, request, *args, **kwargs):
         messages.success(request, 'Produit supprimé avec succès!')
         return super().delete(request, *args, **kwargs)
+
+@login_required
+def add_review(request, slug):
+    """Ajouter un avis sur un produit"""
+    product = get_object_or_404(Product, slug=slug, is_active=True)
+    
+    # Vérifier si l'utilisateur a déjà laissé un avis
+    if Review.objects.filter(product=product, user=request.user).exists():
+        messages.error(request, 'Vous avez déjà laissé un avis pour ce produit.')
+        return redirect('products:detail', slug=slug)
+    
+    if request.method == 'POST':
+        rating = request.POST.get('rating')
+        title = request.POST.get('title', '')
+        comment = request.POST.get('comment', '')
+        
+        if rating:
+            # Vérifier si l'utilisateur a acheté ce produit
+            order = None
+            if request.user.orders.filter(items__product=product, status='delivered').exists():
+                order = request.user.orders.filter(items__product=product, status='delivered').first()
+            
+            Review.objects.create(
+                product=product,
+                user=request.user,
+                order=order,
+                rating=int(rating),
+                title=title,
+                comment=comment,
+                is_verified=bool(order)
+            )
+            
+            messages.success(request, 'Votre avis a été ajouté avec succès!')
+        else:
+            messages.error(request, 'Veuillez donner une note.')
+    
+    return redirect('products:detail', slug=slug)

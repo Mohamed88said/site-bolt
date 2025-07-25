@@ -2,8 +2,8 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
 from django.utils.text import slugify
-from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
+from django.db.models import Avg
 
 User = get_user_model()
 
@@ -81,6 +81,12 @@ class Product(models.Model):
                 unique_slug = f"{base_slug}-{counter}"
                 counter += 1
             self.slug = unique_slug
+        
+        # Calculer la note moyenne
+        if self.pk:
+            avg_rating = self.reviews.aggregate(avg=models.Avg('rating'))['avg']
+            self.rating = avg_rating or 0.00
+        
         super().save(*args, **kwargs)
     
     def get_absolute_url(self):
@@ -106,7 +112,7 @@ class Product(models.Model):
     
     @property
     def is_visible(self):
-        return self.is_active and self.seller.seller_profile.is_verified
+        return self.is_active and hasattr(self.seller, 'seller_profile') and self.seller.seller_profile.is_verified
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
