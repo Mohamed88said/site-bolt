@@ -1,0 +1,330 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Mon espace client - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête client -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2><i class="fas fa-user me-3"></i>Mon espace client</h2>
+                            <p class="mb-0">Bienvenue {{ user.get_full_name|default:user.username }}</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="d-flex justify-content-end align-items-center">
+                                {% if user.avatar %}
+                                    <img src="{{ user.avatar.url }}" class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                                {% else %}
+                                    <i class="fas fa-user-circle fa-4x me-3"></i>
+                                {% endif %}
+                                <div>
+                                    <small>Membre depuis</small>
+                                    <br><strong>{{ user.date_joined|date:"M Y" }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques client -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-shopping-bag fa-3x mb-3"></i>
+                    <h3>{{ total_orders|default:0 }}</h3>
+                    <p class="mb-0">Commandes</p>
+                    <a href="{% url 'orders:list' %}" class="btn btn-light btn-sm mt-2">
+                        <i class="fas fa-list me-1"></i>Voir toutes
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-euro-sign fa-3x mb-3"></i>
+                    <h3>{{ total_spent|default:0|floatformat:0|intcomma }} GNF</h3>
+                    <p class="mb-0">Total dépensé</p>
+                    <a href="{% url 'orders:list' %}" class="btn btn-light btn-sm mt-2">
+                        <i class="fas fa-chart-line me-1"></i>Historique
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-heart fa-3x mb-3"></i>
+                    <h3>{{ favorites_count|default:0 }}</h3>
+                    <p class="mb-0">Favoris</p>
+                    <a href="{% url 'favorites:list' %}" class="btn btn-light btn-sm mt-2">
+                        <i class="fas fa-heart me-1"></i>Mes favoris
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-danger text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-truck fa-3x mb-3"></i>
+                    <h3>{{ active_deliveries|default:0 }}</h3>
+                    <p class="mb-0">Livraisons en cours</p>
+                    <a href="{% url 'deliveries:list' %}" class="btn btn-light btn-sm mt-2">
+                        <i class="fas fa-truck me-1"></i>Suivre
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions urgentes -->
+    {% if pending_payments or active_deliveries %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h5><i class="fas fa-info-circle me-2"></i>Actions en attente</h5>
+                <div class="row">
+                    {% if pending_payments %}
+                    <div class="col-md-6">
+                        <strong>{{ pending_payments }} paiement{{ pending_payments|pluralize }} en attente</strong>
+                        <br><small>Commandes à payer à la livraison</small>
+                        <br><a href="{% url 'orders:list' %}?payment_status=pending" class="btn btn-info btn-sm mt-1">
+                            <i class="fas fa-credit-card me-1"></i>Voir les paiements
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% if active_deliveries %}
+                    <div class="col-md-6">
+                        <strong>{{ active_deliveries }} livraison{{ active_deliveries|pluralize }} en cours</strong>
+                        <br><small>Suivez vos livraisons en temps réel</small>
+                        <br><a href="{% url 'deliveries:list' %}" class="btn btn-info btn-sm mt-1">
+                            <i class="fas fa-truck me-1"></i>Suivre livraisons
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Mes commandes -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="fas fa-shopping-bag me-2"></i>Mes commandes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-4">
+                            <div class="text-center p-2 border rounded">
+                                <h5 class="text-warning">{{ pending_orders|default:0 }}</h5>
+                                <small>En attente</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-center p-2 border rounded">
+                                <h5 class="text-info">{{ shipped_orders|default:0 }}</h5>
+                                <small>Expédiées</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-center p-2 border rounded">
+                                <h5 class="text-success">{{ delivered_orders|default:0 }}</h5>
+                                <small>Livrées</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'orders:list' %}" class="btn btn-primary">
+                            <i class="fas fa-list me-2"></i>Toutes mes commandes
+                        </a>
+                        <a href="{% url 'orders:list' %}?status=pending" class="btn btn-outline-warning">
+                            <i class="fas fa-clock me-2"></i>Commandes en attente
+                        </a>
+                        <a href="{% url 'orders:list' %}?status=shipped" class="btn btn-outline-info">
+                            <i class="fas fa-truck me-2"></i>Commandes expédiées
+                        </a>
+                    </div>
+
+                    {% if recent_orders %}
+                    <hr>
+                    <h6>Commandes récentes</h6>
+                    {% for order in recent_orders|slice:":3" %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                        <div>
+                            <strong>#{{ order.id|slice:":8" }}</strong>
+                            <br><small class="text-muted">{{ order.total_with_shipping|floatformat:0 }} GNF</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-{% if order.status == 'delivered' %}success{% elif order.status == 'shipped' %}info{% elif order.status == 'pending' %}warning{% else %}secondary{% endif %}">
+                                {{ order.get_status_display }}
+                            </span>
+                            <br><a href="{% url 'orders:detail' order.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Mes livraisons -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h5><i class="fas fa-truck me-2"></i>Mes livraisons</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2 mb-3">
+                        <a href="{% url 'deliveries:list' %}" class="btn btn-warning">
+                            <i class="fas fa-truck me-2"></i>Suivre mes livraisons
+                        </a>
+                        <a href="{% url 'geolocation:location_picker' %}" class="btn btn-outline-success">
+                            <i class="fas fa-map-marker-alt me-2"></i>Gérer mes adresses
+                        </a>
+                    </div>
+
+                    {% if recent_deliveries %}
+                    <hr>
+                    <h6>Livraisons récentes</h6>
+                    {% for delivery in recent_deliveries|slice:":3" %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                        <div>
+                            <strong>{{ delivery.tracking_number }}</strong>
+                            <br><small class="text-muted">{{ delivery.order.shipping_city }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-{% if delivery.status == 'completed' %}success{% elif delivery.status == 'in_progress' %}info{% else %}warning{% endif %}">
+                                {{ delivery.get_status_display }}
+                            </span>
+                            <br><a href="{% url 'deliveries:detail' delivery.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Mon panier et favoris -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="fas fa-shopping-cart me-2"></i>Shopping</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="text-center p-3 border rounded">
+                                <h4 class="text-primary">{{ cart_items|default:0 }}</h4>
+                                <small>Articles au panier</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-3 border rounded">
+                                <h4 class="text-danger">{{ favorites_count|default:0 }}</h4>
+                                <small>Favoris</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'cart:detail' %}" class="btn btn-success">
+                            <i class="fas fa-shopping-cart me-2"></i>Mon panier
+                            {% if cart_items %}({{ cart_items }}){% endif %}
+                        </a>
+                        <a href="{% url 'favorites:list' %}" class="btn btn-outline-danger">
+                            <i class="fas fa-heart me-2"></i>Mes favoris
+                        </a>
+                        <a href="{% url 'products:list' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-search me-2"></i>Continuer mes achats
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Support et compte -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <h5><i class="fas fa-user-cog me-2"></i>Mon compte</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'accounts:profile' %}" class="btn btn-info">
+                            <i class="fas fa-user me-2"></i>Mon profil
+                        </a>
+                        <a href="{% url 'accounts:profile_update' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-edit me-2"></i>Modifier mes informations
+                        </a>
+                        <a href="{% url 'messaging:conversation_list' %}" class="btn btn-outline-success">
+                            <i class="fas fa-comments me-2"></i>Mes messages
+                        </a>
+                        <a href="{% url 'returns:list' %}" class="btn btn-outline-warning">
+                            <i class="fas fa-undo me-2"></i>Mes retours
+                        </a>
+                        <a href="{% url 'core:contact' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-headset me-2"></i>Support client
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions rapides -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-bolt me-2"></i>Actions rapides</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'products:list' %}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-search me-2"></i>Rechercher produits
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'cart:detail' %}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-shopping-cart me-2"></i>Finaliser commande
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'orders:list' %}?status=shipped" class="btn btn-outline-info w-100">
+                                <i class="fas fa-truck me-2"></i>Suivre livraisons
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'core:faq' %}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-question-circle me-2"></i>Aide
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

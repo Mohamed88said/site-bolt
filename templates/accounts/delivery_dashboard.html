@@ -1,0 +1,408 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Tableau de bord livreur - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête livreur -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2><i class="fas fa-truck me-3"></i>Tableau de bord livreur</h2>
+                            <p class="mb-0">Bienvenue {{ user.get_full_name|default:user.username }}</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="d-flex justify-content-end align-items-center">
+                                <div class="me-3">
+                                    <span class="badge bg-{% if user.delivery_profile.is_available %}success{% else %}danger{% endif %} fs-5">
+                                        {% if user.delivery_profile.is_available %}
+                                            <i class="fas fa-check-circle me-1"></i>Disponible
+                                        {% else %}
+                                            <i class="fas fa-times-circle me-1"></i>Indisponible
+                                        {% endif %}
+                                    </span>
+                                    <br><small class="mt-1 d-block">
+                                        <form method="post" action="{% url 'deliveries:toggle_availability' %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-dark">
+                                                {% if user.delivery_profile.is_available %}
+                                                    <i class="fas fa-pause me-1"></i>Se mettre indisponible
+                                                {% else %}
+                                                    <i class="fas fa-play me-1"></i>Se mettre disponible
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                    </small>
+                                </div>
+                                <div>
+                                    <small>Véhicule</small>
+                                    <br><strong>{{ user.delivery_profile.get_vehicle_type_display }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques livreur -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-truck fa-3x mb-3"></i>
+                    <h3>{{ total_deliveries|default:0 }}</h3>
+                    <p class="mb-0">Livraisons totales</p>
+                    <a href="{% url 'deliveries:list' %}" class="btn btn-light btn-sm mt-2">
+                        <i class="fas fa-list me-1"></i>Voir toutes
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-3x mb-3"></i>
+                    <h3>{{ completed_deliveries|default:0 }}</h3>
+                    <p class="mb-0">Livraisons réussies</p>
+                    <a href="{% url 'deliveries:list' %}?status=completed" class="btn btn-light btn-sm mt-2">
+                        <i class="fas fa-history me-1"></i>Historique
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-star fa-3x mb-3"></i>
+                    <h3>{{ average_rating|default:0|floatformat:1 }}/5</h3>
+                    <p class="mb-0">Note moyenne</p>
+                    <small class="text-light">{{ total_ratings|default:0 }} évaluation{{ total_ratings|pluralize }}</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-warning text-dark h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-euro-sign fa-3x mb-3"></i>
+                    <h3>{{ monthly_earnings|default:0|floatformat:0|intcomma }} GNF</h3>
+                    <p class="mb-0">Gains ce mois</p>
+                    <small>{{ total_earnings|default:0|floatformat:0|intcomma }} GNF total</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vérification du profil -->
+    {% if not user.delivery_profile.is_verified %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning">
+                <h5><i class="fas fa-exclamation-triangle me-2"></i>Profil en attente de validation</h5>
+                <p class="mb-2">Votre profil livreur doit être validé pour recevoir des livraisons.</p>
+                <a href="{% url 'accounts:delivery_profile_update' %}" class="btn btn-warning">
+                    <i class="fas fa-edit me-2"></i>Compléter mon profil
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Livraisons en cours -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="fas fa-clock me-2"></i>Mes livraisons en cours</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="text-center p-3 border rounded">
+                                <h4 class="text-warning">{{ assigned_deliveries|default:0 }}</h4>
+                                <small>Assignées</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-3 border rounded">
+                                <h4 class="text-info">{{ in_progress_deliveries|default:0 }}</h4>
+                                <small>En cours</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'deliveries:list' %}" class="btn btn-primary">
+                            <i class="fas fa-list me-2"></i>Toutes mes livraisons
+                        </a>
+                        <a href="{% url 'deliveries:list' %}?status=assigned" class="btn btn-outline-warning">
+                            <i class="fas fa-play me-2"></i>À démarrer
+                        </a>
+                        <a href="{% url 'deliveries:list' %}?status=in_progress" class="btn btn-outline-info">
+                            <i class="fas fa-truck me-2"></i>En cours
+                        </a>
+                    </div>
+
+                    {% if current_deliveries %}
+                    <hr>
+                    <h6>Livraisons actuelles</h6>
+                    {% for delivery in current_deliveries|slice:":3" %}
+                    <div class="card mb-2 border-{% if delivery.status == 'assigned' %}warning{% else %}info{% endif %}">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ delivery.tracking_number }}</strong>
+                                    <br><small class="text-muted">{{ delivery.order.shipping_city }}</small>
+                                    <br><span class="badge bg-{% if delivery.status == 'assigned' %}warning{% else %}info{% endif %}">
+                                        {{ delivery.get_status_display }}
+                                    </span>
+                                </div>
+                                <div class="text-end">
+                                    <strong>{{ delivery.delivery_cost|floatformat:0 }} GNF</strong>
+                                    <br>
+                                    {% if delivery.status == 'assigned' %}
+                                        <a href="{% url 'deliveries:start' delivery.id %}" class="btn btn-sm btn-success">
+                                            <i class="fas fa-play"></i> Démarrer
+                                        </a>
+                                    {% elif delivery.status == 'in_progress' %}
+                                        <a href="{% url 'deliveries:complete' delivery.id %}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-check"></i> Terminer
+                                        </a>
+                                    {% endif %}
+                                    <br><a href="{% url 'deliveries:detail' delivery.pk %}" class="btn btn-sm btn-outline-primary mt-1">
+                                        <i class="fas fa-eye"></i> Détails
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Aucune livraison en cours</p>
+                        <a href="{% url 'deliveries:available' %}" class="btn btn-primary">
+                            <i class="fas fa-search me-2"></i>Chercher des livraisons
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Livraisons disponibles -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="fas fa-search me-2"></i>Livraisons disponibles</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <h4 class="text-success">{{ available_deliveries_count|default:0 }}</h4>
+                        <small>Livraisons disponibles dans votre zone</small>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'deliveries:available' %}" class="btn btn-success">
+                            <i class="fas fa-search me-2"></i>Voir les livraisons disponibles
+                        </a>
+                        <a href="{% url 'geolocation:location_picker' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-map-marker-alt me-2"></i>Mettre à jour ma position
+                        </a>
+                    </div>
+
+                    {% if available_deliveries %}
+                    <hr>
+                    <h6>Opportunités proches</h6>
+                    {% for delivery in available_deliveries|slice:":3" %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                        <div>
+                            <strong>{{ delivery.tracking_number }}</strong>
+                            <br><small class="text-muted">{{ delivery.order.shipping_city }}</small>
+                        </div>
+                        <div class="text-end">
+                            <strong class="text-success">{{ delivery.delivery_cost|floatformat:0 }} GNF</strong>
+                            <br><a href="{% url 'deliveries:request' delivery.id %}" class="btn btn-sm btn-success">
+                                <i class="fas fa-hand-paper"></i> Proposer
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Performances -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <h5><i class="fas fa-chart-bar me-2"></i>Mes performances</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="text-center p-2 border rounded">
+                                <h5 class="text-success">{{ success_rate|default:0 }}%</h5>
+                                <small>Taux de réussite</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-2 border rounded">
+                                <h5 class="text-info">{{ avg_delivery_time|default:0 }}min</h5>
+                                <small>Temps moyen</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Note moyenne</label>
+                        <div class="rating mb-2">
+                            {% for i in "12345" %}
+                                {% if average_rating >= i|add:0 %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% else %}
+                                    <i class="far fa-star text-muted"></i>
+                                {% endif %}
+                            {% endfor %}
+                            <span class="ms-2">{{ average_rating|default:0|floatformat:1 }}/5</span>
+                        </div>
+                    </div>
+
+                    {% if recent_ratings %}
+                    <hr>
+                    <h6>Dernières évaluations</h6>
+                    {% for rating in recent_ratings|slice:":3" %}
+                    <div class="mb-2 p-2 border rounded">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="rating">
+                                {% for i in "12345" %}
+                                    {% if rating.rating >= i|add:0 %}
+                                        <i class="fas fa-star text-warning"></i>
+                                    {% else %}
+                                        <i class="far fa-star text-muted"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <small class="text-muted">{{ rating.created_at|date:"d/m" }}</small>
+                        </div>
+                        {% if rating.comment %}
+                        <p class="mb-0 small">{{ rating.comment|truncatewords:10 }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Mon profil livreur -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white">
+                    <h5><i class="fas fa-user-cog me-2"></i>Mon profil livreur</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Véhicule :</strong> {{ user.delivery_profile.get_vehicle_type_display }}
+                        {% if user.delivery_profile.license_plate %}
+                            <br><strong>Plaque :</strong> {{ user.delivery_profile.license_plate }}
+                        {% endif %}
+                        <br><strong>Rayon d'action :</strong> {{ user.delivery_profile.availability_radius }} km
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'accounts:delivery_profile_update' %}" class="btn btn-secondary">
+                            <i class="fas fa-edit me-2"></i>Modifier mon profil
+                        </a>
+                        <a href="{% url 'accounts:profile_update' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-user me-2"></i>Informations personnelles
+                        </a>
+                        <a href="{% url 'messaging:conversation_list' %}" class="btn btn-outline-success">
+                            <i class="fas fa-comments me-2"></i>Mes messages
+                        </a>
+                    </div>
+
+                    <hr>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="availability" 
+                               {% if user.delivery_profile.is_available %}checked{% endif %}
+                               onchange="toggleAvailability()">
+                        <label class="form-check-label" for="availability">
+                            <strong>Disponible pour les livraisons</strong>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions rapides -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-bolt me-2"></i>Actions rapides</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'deliveries:available' %}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-search me-2"></i>Chercher livraisons
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'deliveries:list' %}?status=assigned" class="btn btn-outline-warning w-100">
+                                <i class="fas fa-play me-2"></i>Démarrer livraisons
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'deliveries:list' %}?status=in_progress" class="btn btn-outline-info w-100">
+                                <i class="fas fa-truck me-2"></i>Livraisons en cours
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'geolocation:location_picker' %}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-map-marker-alt me-2"></i>Ma position
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleAvailability() {
+    const checkbox = document.getElementById('availability');
+    fetch('{% url "deliveries:toggle_availability" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            is_available: checkbox.checked
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            checkbox.checked = !checkbox.checked;
+            alert('Erreur lors de la mise à jour');
+        }
+    });
+}
+</script>
+{% endblock %}
